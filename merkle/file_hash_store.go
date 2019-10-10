@@ -104,7 +104,8 @@ func (self *fileHashStore) Flush() error {
 	if self == nil {
 		return nil
 	}
-	return self.file.Sync()
+	return nil
+	//return self.file.Sync()
 }
 
 func (self *fileHashStore) Close() {
