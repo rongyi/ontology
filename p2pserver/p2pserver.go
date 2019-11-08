@@ -54,10 +54,8 @@ type P2PServer struct {
 	blockSync *BlockSyncMgr
 	ledger    *ledger.Ledger
 	ReconnectAddrs
-	recentPeers    map[uint32][]string
-	quitSyncRecent chan bool
-	quitOnline     chan bool
-	quitHeartBeat  chan bool
+	recentPeers map[uint32][]string
+	stopCh      chan struct{}
 }
 
 //ReconnectAddrs contain addr need to reconnect
@@ -67,7 +65,7 @@ type ReconnectAddrs struct {
 }
 
 //NewServer return a new p2pserver according to the pubkey
-func NewServer() *P2PServer {
+func NewServer(stopCh chan struct{}) *P2PServer {
 	n := netserver.NewNetServer()
 
 	p := &P2PServer{
@@ -75,12 +73,11 @@ func NewServer() *P2PServer {
 		ledger:  ledger.DefLedger,
 	}
 
-	p.msgRouter = utils.NewMsgRouter(p.network)
-	p.blockSync = NewBlockSyncMgr(p)
+	p.stopCh = stopCh
+	p.msgRouter = utils.NewMsgRouter(p.network, stopCh)
+	p.blockSync = NewBlockSyncMgr(p, stopCh)
 	p.recentPeers = make(map[uint32][]string)
-	p.quitSyncRecent = make(chan bool)
-	p.quitOnline = make(chan bool)
-	p.quitHeartBeat = make(chan bool)
+
 	return p
 }
 
@@ -113,11 +110,6 @@ func (this *P2PServer) Start() error {
 //Stop halt all service by send signal to channels
 func (this *P2PServer) Stop() {
 	this.network.Halt()
-	this.quitSyncRecent <- true
-	this.quitOnline <- true
-	this.quitHeartBeat <- true
-	this.msgRouter.Stop()
-	this.blockSync.Close()
 }
 
 // GetNetWork returns the low level netserver
@@ -452,7 +444,7 @@ func (this *P2PServer) connectSeedService() {
 			} else {
 				t.Reset(time.Second * common.CONN_MONITOR)
 			}
-		case <-this.quitOnline:
+		case <-this.stopCh:
 			t.Stop()
 			return
 		}
@@ -468,7 +460,7 @@ func (this *P2PServer) keepOnlineService() {
 			this.retryInactivePeer()
 			t.Stop()
 			t.Reset(time.Second * common.CONN_MONITOR)
-		case <-this.quitOnline:
+		case <-this.stopCh:
 			t.Stop()
 			return
 		}
@@ -492,7 +484,7 @@ func (this *P2PServer) heartBeatService() {
 		case <-t.C:
 			this.ping()
 			this.timeout()
-		case <-this.quitHeartBeat:
+		case <-this.stopCh:
 			t.Stop()
 			return
 		}
@@ -591,12 +583,11 @@ func (this *P2PServer) syncUpRecentPeers() {
 		select {
 		case <-t.C:
 			this.syncPeerAddr()
-		case <-this.quitSyncRecent:
+		case <-this.stopCh:
 			t.Stop()
 			return
 		}
 	}
-
 }
 
 //syncPeerAddr compare snapshot of recent peer with current link,then persist the list

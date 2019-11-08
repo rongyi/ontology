@@ -324,6 +324,7 @@ func (this *NetServer) Halt() {
 	}
 	if this.listener != nil {
 		this.listener.Close()
+		this.listener = nil
 	}
 }
 

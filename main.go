@@ -141,6 +141,7 @@ func main() {
 }
 
 func startOntology(ctx *cli.Context) {
+	stopCh := make(chan struct{})
 	initLog(ctx)
 
 	log.Infof("ontology version %s", config.Version)
@@ -168,7 +169,7 @@ func startOntology(ctx *cli.Context) {
 		log.Errorf("initTxPool error: %s", err)
 		return
 	}
-	p2pSvr, p2pPid, err := initP2PNode(ctx, txpool)
+	p2pSvr, p2pPid, err := initP2PNode(ctx, txpool, stopCh)
 	if err != nil {
 		log.Errorf("initP2PNode error: %s", err)
 		return
@@ -178,12 +179,12 @@ func startOntology(ctx *cli.Context) {
 		log.Errorf("initConsensus error: %s", err)
 		return
 	}
-	err = initRpc(ctx)
+	err = initRPC(ctx)
 	if err != nil {
 		log.Errorf("initRpc error: %s", err)
 		return
 	}
-	err = initLocalRpc(ctx)
+	err = initLocalRPC(ctx)
 	if err != nil {
 		log.Errorf("initLocalRpc error: %s", err)
 		return
@@ -192,8 +193,21 @@ func startOntology(ctx *cli.Context) {
 	initWs(ctx)
 	initNodeInfo(ctx, p2pSvr)
 
-	go logCurrBlockHeight()
-	waitToExit(ldg)
+	go logCurrBlockHeight(stopCh)
+
+	sc := make(chan os.Signal, 3)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		sig := <-sc
+		log.Infof("Ontology received exit signal: %v.", sig.String())
+		log.Infof("closing ledger...")
+		ldg.Close()
+		log.Infof("stop p2pserver...")
+		p2pSvr.Stop()
+		close(stopCh)
+		os.Exit(1)
+	}()
+	select {}
 }
 
 func initLog(ctx *cli.Context) {
@@ -295,11 +309,11 @@ func initTxPool(ctx *cli.Context) (*proc.TXPoolServer, error) {
 	return txPoolServer, nil
 }
 
-func initP2PNode(ctx *cli.Context, txpoolSvr *proc.TXPoolServer) (*p2pserver.P2PServer, *actor.PID, error) {
+func initP2PNode(ctx *cli.Context, txpoolSvr *proc.TXPoolServer, stopCh chan struct{}) (*p2pserver.P2PServer, *actor.PID, error) {
 	if config.DefConfig.Genesis.ConsensusType == config.CONSENSUS_TYPE_SOLO {
 		return nil, nil, nil
 	}
-	p2p := p2pserver.NewServer()
+	p2p := p2pserver.NewServer(stopCh)
 
 	p2pActor := p2pactor.NewP2PActor(p2p)
 	p2pPID, err := p2pActor.Start()
@@ -339,53 +353,42 @@ func initConsensus(ctx *cli.Context, p2pPid *actor.PID, txpoolSvr *proc.TXPoolSe
 	return consensusService, nil
 }
 
-func initRpc(ctx *cli.Context) error {
+func initRPC(ctx *cli.Context) error {
 	if !config.DefConfig.Rpc.EnableHttpJsonRpc {
 		return nil
 	}
 	var err error
-	exitCh := make(chan interface{}, 0)
+	exitCh := make(chan struct{}, 0)
 	go func() {
 		err = jsonrpc.StartRPCServer()
 		close(exitCh)
 	}()
 
-	flag := false
 	select {
 	case <-exitCh:
-		if !flag {
-			return err
-		}
-	case <-time.After(time.Millisecond * 5):
-		flag = true
+		return err
+	case <-time.After(time.Millisecond * 50):
+		return nil
 	}
-	log.Infof("Rpc init success")
-	return nil
 }
 
-func initLocalRpc(ctx *cli.Context) error {
+func initLocalRPC(ctx *cli.Context) error {
 	if !ctx.GlobalBool(utils.GetFlagName(utils.RPCLocalEnableFlag)) {
 		return nil
 	}
 	var err error
-	exitCh := make(chan interface{}, 0)
+	exitCh := make(chan struct{}, 0)
 	go func() {
 		err = localrpc.StartLocalServer()
 		close(exitCh)
 	}()
 
-	flag := false
 	select {
 	case <-exitCh:
-		if !flag {
-			return err
-		}
-	case <-time.After(time.Millisecond * 5):
-		flag = true
+		return err
+	case <-time.After(time.Millisecond * 50):
+		return nil
 	}
-
-	log.Infof("Local rpc init success")
-	return nil
 }
 
 func initRestful(ctx *cli.Context) {
@@ -415,7 +418,7 @@ func initNodeInfo(ctx *cli.Context, p2pSvr *p2pserver.P2PServer) {
 	log.Infof("Nodeinfo init success")
 }
 
-func logCurrBlockHeight() {
+func logCurrBlockHeight(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(config.DEFAULT_GEN_BLOCK_TIME * time.Second)
 	defer ticker.Stop()
 	for {
@@ -427,6 +430,8 @@ func logCurrBlockHeight() {
 				log.ClosePrintLog()
 				log.InitLog(int(config.DefConfig.Common.LogLevel), log.PATH, log.Stdout)
 			}
+		case <-stopCh:
+			return
 		}
 	}
 }
@@ -442,20 +447,4 @@ func setMaxOpenFiles() {
 		log.Errorf("failed to set maximum open files: %v", err)
 		return
 	}
-}
-
-func waitToExit(db *ledger.Ledger) {
-	exit := make(chan bool, 0)
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
-	go func() {
-		for sig := range sc {
-			log.Infof("Ontology received exit signal: %v.", sig.String())
-			log.Infof("closing ledger...")
-			db.Close()
-			close(exit)
-			break
-		}
-	}()
-	<-exit
 }
