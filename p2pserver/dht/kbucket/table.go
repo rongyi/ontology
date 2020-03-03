@@ -98,7 +98,7 @@ func (rt *RoutingTable) GetTrackedCplsForRefresh() []CplRefresh {
 // GenRandPeerID generates a random peerID for a given Cpl
 func (rt *RoutingTable) GenRandPeerID(targetCpl uint) (peer.ID, error) {
 	if targetCpl > maxCplForRefresh {
-		return "", fmt.Errorf("cannot generate peer ID for Cpl greater than %d", maxCplForRefresh)
+		return peer.ID{"", 0}, fmt.Errorf("cannot generate peer ID for Cpl greater than %d", maxCplForRefresh)
 	}
 
 	localPrefix := binary.BigEndian.Uint16(rt.local)
@@ -119,7 +119,9 @@ func (rt *RoutingTable) GenRandPeerID(targetCpl uint) (peer.ID, error) {
 	id := [32]byte{}
 	binary.BigEndian.PutUint32(id[:], key)
 
-	return peer.ID(id[:]), nil
+	return peer.ID{
+		ID: string(id[:]),
+	}, nil
 }
 
 // ResetCplRefreshedAtForID resets the refresh time for the Cpl of the given ID.
@@ -226,7 +228,7 @@ func (rt *RoutingTable) nextBucket() {
 func (rt *RoutingTable) Find(id peer.ID) (peer.ID, bool) {
 	srch := rt.NearestPeers(ConvertPeerID(id), 1)
 	if len(srch) == 0 || srch[0] != id {
-		return "", false
+		return peer.ID{}, false
 	}
 	return srch[0], true
 }
@@ -239,7 +241,7 @@ func (rt *RoutingTable) NearestPeer(id ID) (peer.ID, bool) {
 	}
 
 	log.Debugf("NearestPeer: Returning nil, table size = %d", rt.Size())
-	return "", false
+	return peer.ID{}, false
 }
 
 // NearestPeers returns a list of the 'count' closest peers to the given ID

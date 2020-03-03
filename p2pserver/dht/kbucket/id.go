@@ -29,7 +29,7 @@ type ID []byte
 
 // ConvertPeerID convert dht peerid to dht id in bucket
 func ConvertPeerID(id peer.ID) ID {
-	hash := sha256.Sum256([]byte(id))
+	hash := sha256.Sum256([]byte(id.ID))
 	return hash[:]
 }
 

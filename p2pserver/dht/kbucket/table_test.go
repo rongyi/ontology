@@ -358,10 +358,10 @@ func TestTableFindMultipleBuckets(t *testing.T) {
 		// Make sure all remaining peers are _somewhere_ in the "closer" set.
 		pset := set.NewStringSet()
 		for _, p := range same {
-			pset.Insert(string(p))
+			pset.Insert(string(p.ID))
 		}
 		for _, p := range found {
-			if !pset.Has(string(p)) {
+			if !pset.Has(string(p.ID)) {
 				t.Fatalf("unexpected peer %s", p.Pretty())
 			}
 		}
