@@ -23,15 +23,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ontio/ontology/account"
 	"github.com/ontio/ontology/p2pserver/common/set"
+	"github.com/ontio/ontology/p2pserver/dht/peer"
 	"github.com/stretchr/testify/require"
 )
 
-func genpeerID() uint64 {
-	rand.Seed(time.Now().UnixNano())
-	id := rand.Uint64()
-
-	return id
+func genpeerID() peer.ID {
+	act := account.NewAccount("")
+	return peer.IDFromPublicKey(act.PublicKey)
 }
 
 // Test basic features of the bucket struct
@@ -40,7 +40,7 @@ func TestBucket(t *testing.T) {
 
 	b := newBucket()
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 100; i++ {
 		peers[i] = genpeerID()
 		b.PushFront(peers[i])
@@ -57,7 +57,7 @@ func TestBucket(t *testing.T) {
 	spl := b.Split(0, ConvertPeerID(local))
 	llist := b.list
 	for e := llist.Front(); e != nil; e = e.Next() {
-		p := ConvertPeerID(e.Value.(uint64))
+		p := ConvertPeerID(e.Value.(peer.ID))
 		cpl := CommonPrefixLen(p, localID)
 		if cpl > 0 {
 			t.Fatalf("Split failed. found id with cpl > 0 in 0 bucket")
@@ -66,7 +66,7 @@ func TestBucket(t *testing.T) {
 
 	rlist := spl.list
 	for e := rlist.Front(); e != nil; e = e.Next() {
-		p := ConvertPeerID(e.Value.(uint64))
+		p := ConvertPeerID(e.Value.(peer.ID))
 		cpl := CommonPrefixLen(p, localID)
 		if cpl == 0 {
 			t.Fatalf("Split failed. found id with cpl == 0 in non 0 bucket")
@@ -129,16 +129,16 @@ func TestTableCallbacks(t *testing.T) {
 	local := genpeerID()
 	rt := NewRoutingTable(10, ConvertPeerID(local))
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 100; i++ {
 		peers[i] = genpeerID()
 	}
 
-	pset := make(map[uint64]struct{})
-	rt.PeerAdded = func(p uint64) {
+	pset := make(map[peer.ID]struct{})
+	rt.PeerAdded = func(p peer.ID) {
 		pset[p] = struct{}{}
 	}
-	rt.PeerRemoved = func(p uint64) {
+	rt.PeerRemoved = func(p peer.ID) {
 		delete(pset, p)
 	}
 
@@ -176,7 +176,7 @@ func TestTableUpdate(t *testing.T) {
 	local := genpeerID()
 	rt := NewRoutingTable(10, ConvertPeerID(local))
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 100; i++ {
 		peers[i] = genpeerID()
 	}
@@ -201,13 +201,13 @@ func TestTableFind(t *testing.T) {
 	local := genpeerID()
 	rt := NewRoutingTable(10, ConvertPeerID(local))
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 5; i++ {
 		peers[i] = genpeerID()
 		rt.Update(peers[i])
 	}
 
-	t.Logf("Searching for peer: '%d'", peers[2])
+	t.Logf("Searching for peer: '%s'", peers[2].Pretty())
 	found, _ := rt.NearestPeer(ConvertPeerID(peers[2]))
 	if !(found == peers[2]) {
 		t.Fatalf("Failed to lookup known node...")
@@ -221,7 +221,7 @@ func TestTableEldestPreferred(t *testing.T) {
 	rt := NewRoutingTable(10, ConvertPeerID(local))
 
 	// generate size + 1 peers to saturate a bucket
-	peers := make([]uint64, 15)
+	peers := make([]peer.ID, 15)
 	for i := 0; i < 15; {
 		if p := genpeerID(); CommonPrefixLen(ConvertPeerID(local), ConvertPeerID(p)) == 0 {
 			peers[i] = p
@@ -254,21 +254,21 @@ func TestTableFindMultiple(t *testing.T) {
 	local := genpeerID()
 	rt := NewRoutingTable(20, ConvertPeerID(local))
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 18; i++ {
 		peers[i] = genpeerID()
 		rt.Update(peers[i])
 	}
 
 	// put in one bucket
-	t.Logf("Searching for peer: '%d'", peers[2])
+	t.Logf("Searching for peer: '%s'", peers[2].Pretty())
 	found := rt.NearestPeers(ConvertPeerID(peers[2]), 15)
 	if len(found) != 15 {
 		t.Fatalf("Got back different number of peers than we expected.")
 	}
 }
 
-func assertSortedPeerIdsEqual(t *testing.T, a, b []uint64) {
+func assertSortedPeerIdsEqual(t *testing.T, a, b []peer.ID) {
 	t.Helper()
 	if len(a) != len(b) {
 		t.Fatal("slices aren't the same length")
@@ -288,7 +288,7 @@ func TestTableFindMultipleBuckets(t *testing.T) {
 
 	rt := NewRoutingTable(5, localID)
 
-	peers := make([]uint64, 100)
+	peers := make([]peer.ID, 100)
 	for i := 0; i < 100; i++ {
 		peers[i] = genpeerID()
 		rt.Update(peers[i])
@@ -303,7 +303,7 @@ func TestTableFindMultipleBuckets(t *testing.T) {
 
 	// Split the peers into closer, same, and further from the key (than us).
 	var (
-		closer, same, further []uint64
+		closer, same, further []peer.ID
 	)
 	var i int
 	for i = 0; i < len(closest); i++ {
@@ -356,13 +356,13 @@ func TestTableFindMultipleBuckets(t *testing.T) {
 		// technically closer.
 
 		// Make sure all remaining peers are _somewhere_ in the "closer" set.
-		pset := set.NewUint64()
+		pset := set.NewStringSet()
 		for _, p := range same {
-			pset.Insert(p)
+			pset.Insert(string(p))
 		}
 		for _, p := range found {
-			if !pset.Has(p) {
-				t.Fatalf("unexpected peer %d", p)
+			if !pset.Has(string(p)) {
+				t.Fatalf("unexpected peer %s", p.Pretty())
 			}
 		}
 		return
@@ -401,7 +401,7 @@ func TestTableMultithreaded(t *testing.T) {
 
 	local := genpeerID()
 	tab := NewRoutingTable(20, ConvertPeerID(local))
-	var peers []uint64
+	var peers []peer.ID
 	for i := 0; i < 500; i++ {
 		peers = append(peers, genpeerID())
 	}
@@ -440,7 +440,7 @@ func BenchmarkUpdates(b *testing.B) {
 	local := ConvertPeerID(genpeerID())
 	tab := NewRoutingTable(20, local)
 
-	var peers []uint64
+	var peers []peer.ID
 	for i := 0; i < b.N; i++ {
 		peers = append(peers, genpeerID())
 	}
@@ -456,7 +456,7 @@ func BenchmarkFinds(b *testing.B) {
 	local := ConvertPeerID(genpeerID())
 	tab := NewRoutingTable(20, local)
 
-	var peers []uint64
+	var peers []peer.ID
 	for i := 0; i < b.N; i++ {
 		peers = append(peers, genpeerID())
 		tab.Update(peers[i])

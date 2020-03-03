@@ -19,18 +19,17 @@
 package kbucket
 
 import (
-	"strconv"
-
 	"github.com/minio/sha256-simd"
 	ks "github.com/ontio/ontology/p2pserver/dht/kbucket/keyspace"
+	"github.com/ontio/ontology/p2pserver/dht/peer"
 )
 
 // ID is used in dht
 type ID []byte
 
-// ConvertPeerID convert ontology peerid to dht id in bucket
-func ConvertPeerID(id uint64) ID {
-	hash := sha256.Sum256([]byte(strconv.FormatUint(id, 10)))
+// ConvertPeerID convert dht peerid to dht id in bucket
+func ConvertPeerID(id peer.ID) ID {
+	hash := sha256.Sum256([]byte(id))
 	return hash[:]
 }
 
@@ -39,7 +38,7 @@ func xor(a, b ID) ID {
 }
 
 // Closer returns true if a is closer to key than b is
-func Closer(a, b, key uint64) bool {
+func Closer(a, b, key peer.ID) bool {
 	aid := ConvertPeerID(a)
 	bid := ConvertPeerID(b)
 	tgt := ConvertPeerID(key)

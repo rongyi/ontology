@@ -21,11 +21,13 @@ package kbucket
 import (
 	"container/list"
 	"sort"
+
+	"github.com/ontio/ontology/p2pserver/dht/peer"
 )
 
 // A helper struct to sort peers by their distance to the local node
 type peerDistance struct {
-	p        uint64
+	p        peer.ID
 	distance ID
 }
 
@@ -42,7 +44,7 @@ func (pds *peerDistanceSorter) Less(a, b int) bool {
 }
 
 // Append the peer.ID to the sorter's slice. It may no longer be sorted.
-func (pds *peerDistanceSorter) appendPeer(p uint64) {
+func (pds *peerDistanceSorter) appendPeer(p peer.ID) {
 	pds.peers = append(pds.peers, peerDistance{
 		p:        p,
 		distance: xor(pds.target, ConvertPeerID(p)),
@@ -52,7 +54,7 @@ func (pds *peerDistanceSorter) appendPeer(p uint64) {
 // Append the peer.ID values in the list to the sorter's slice. It may no longer be sorted.
 func (pds *peerDistanceSorter) appendPeersFromList(l *list.List) {
 	for e := l.Front(); e != nil; e = e.Next() {
-		pds.appendPeer(e.Value.(uint64))
+		pds.appendPeer(e.Value.(peer.ID))
 	}
 }
 
@@ -61,7 +63,7 @@ func (pds *peerDistanceSorter) sort() {
 }
 
 // Sort the given peers by their ascending distance from the target. A new slice is returned.
-func SortClosestPeers(peers []uint64, target ID) []uint64 {
+func SortClosestPeers(peers []peer.ID, target ID) []peer.ID {
 	sorter := peerDistanceSorter{
 		peers:  make([]peerDistance, 0, len(peers)),
 		target: target,
@@ -70,7 +72,7 @@ func SortClosestPeers(peers []uint64, target ID) []uint64 {
 		sorter.appendPeer(p)
 	}
 	sorter.sort()
-	out := make([]uint64, 0, sorter.Len())
+	out := make([]peer.ID, 0, sorter.Len())
 	for _, p := range sorter.peers {
 		out = append(out, p.p)
 	}

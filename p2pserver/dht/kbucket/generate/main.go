@@ -23,7 +23,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -39,11 +38,13 @@ func main() {
 	count := int32(0)
 
 	out := make([]byte, 32)
+	inp := [32]byte{}
 	hasher := sha256.New()
 
 	for i := uint32(0); count < target; i++ {
 		// must equal to ConvertPeerID
-		hasher.Write([]byte(strconv.FormatUint(uint64(i), 10)))
+		binary.BigEndian.PutUint32(inp[:], i)
+		hasher.Write(inp[:])
 		out = hasher.Sum(out[:0])
 		hasher.Reset()
 

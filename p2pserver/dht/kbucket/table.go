@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ontio/ontology/common/log"
+	"github.com/ontio/ontology/p2pserver/dht/peer"
 )
 
 var ErrPeerRejectedHighLatency = errors.New("peer rejected; latency too high")
@@ -59,11 +60,11 @@ type RoutingTable struct {
 	cplRefreshedAt map[uint]time.Time
 
 	// notification callback functions
-	PeerRemoved func(uint64)
-	PeerAdded   func(uint64)
+	PeerRemoved func(peer.ID)
+	PeerAdded   func(peer.ID)
 }
 
-func noop(_ uint64) {}
+func noop(_ peer.ID) {}
 
 // NewRoutingTable creates a new routing table with a given bucketsize, local ID, and latency tolerance.
 func NewRoutingTable(bucketsize int, localID ID) *RoutingTable {
@@ -95,9 +96,9 @@ func (rt *RoutingTable) GetTrackedCplsForRefresh() []CplRefresh {
 }
 
 // GenRandPeerID generates a random peerID for a given Cpl
-func (rt *RoutingTable) GenRandPeerID(targetCpl uint) (uint64, error) {
+func (rt *RoutingTable) GenRandPeerID(targetCpl uint) (peer.ID, error) {
 	if targetCpl > maxCplForRefresh {
-		return 0, fmt.Errorf("cannot generate peer ID for Cpl greater than %d", maxCplForRefresh)
+		return "", fmt.Errorf("cannot generate peer ID for Cpl greater than %d", maxCplForRefresh)
 	}
 
 	localPrefix := binary.BigEndian.Uint16(rt.local)
@@ -115,8 +116,10 @@ func (rt *RoutingTable) GenRandPeerID(targetCpl uint) (uint64, error) {
 
 	// Convert to a known peer ID.
 	key := keyPrefixMap[targetPrefix]
+	id := [32]byte{}
+	binary.BigEndian.PutUint32(id[:], key)
 
-	return uint64(key), nil
+	return peer.ID(id[:]), nil
 }
 
 // ResetCplRefreshedAtForID resets the refresh time for the Cpl of the given ID.
@@ -133,7 +136,7 @@ func (rt *RoutingTable) ResetCplRefreshedAtForID(id ID, newTime time.Time) {
 }
 
 // Update adds or moves the given peer to the front of its respective bucket
-func (rt *RoutingTable) Update(p uint64) error {
+func (rt *RoutingTable) Update(p peer.ID) error {
 	peerID := ConvertPeerID(p)
 	cpl := CommonPrefixLen(peerID, rt.local)
 
@@ -186,7 +189,7 @@ func (rt *RoutingTable) Update(p uint64) error {
 
 // Remove deletes a peer from the routing table. This is to be used
 // when we are sure a node has disconnected completely.
-func (rt *RoutingTable) Remove(p uint64) {
+func (rt *RoutingTable) Remove(p peer.ID) {
 	peerID := ConvertPeerID(p)
 	cpl := CommonPrefixLen(peerID, rt.local)
 
@@ -220,27 +223,27 @@ func (rt *RoutingTable) nextBucket() {
 }
 
 // Find a specific peer by ID or return nil
-func (rt *RoutingTable) Find(id uint64) (uint64, bool) {
+func (rt *RoutingTable) Find(id peer.ID) (peer.ID, bool) {
 	srch := rt.NearestPeers(ConvertPeerID(id), 1)
 	if len(srch) == 0 || srch[0] != id {
-		return 0, false
+		return "", false
 	}
 	return srch[0], true
 }
 
 // NearestPeer returns a single peer that is nearest to the given ID
-func (rt *RoutingTable) NearestPeer(id ID) (uint64, bool) {
+func (rt *RoutingTable) NearestPeer(id ID) (peer.ID, bool) {
 	peers := rt.NearestPeers(id, 1)
 	if len(peers) > 0 {
 		return peers[0], true
 	}
 
 	log.Debugf("NearestPeer: Returning nil, table size = %d", rt.Size())
-	return 0, false
+	return "", false
 }
 
 // NearestPeers returns a list of the 'count' closest peers to the given ID
-func (rt *RoutingTable) NearestPeers(id ID, count int) []uint64 {
+func (rt *RoutingTable) NearestPeers(id ID, count int) []peer.ID {
 	// This is the number of bits _we_ share with the key. All peers in this
 	// bucket share cpl bits with us and will therefore share at least cpl+1
 	// bits with the given key. +1 because both the target and all peers in
@@ -296,7 +299,7 @@ func (rt *RoutingTable) NearestPeers(id ID, count int) []uint64 {
 		pds.peers = pds.peers[:count]
 	}
 
-	out := make([]uint64, 0, pds.Len())
+	out := make([]peer.ID, 0, pds.Len())
 	for _, p := range pds.peers {
 		out = append(out, p.p)
 	}
@@ -316,8 +319,8 @@ func (rt *RoutingTable) Size() int {
 }
 
 // ListPeers takes a RoutingTable and returns a list of all peers from all buckets in the table.
-func (rt *RoutingTable) ListPeers() []uint64 {
-	var peers []uint64
+func (rt *RoutingTable) ListPeers() []peer.ID {
+	var peers []peer.ID
 	rt.tabLock.RLock()
 	for _, buck := range rt.Buckets {
 		peers = append(peers, buck.Peers()...)
@@ -336,8 +339,8 @@ func (rt *RoutingTable) Print() {
 
 		b.lk.RLock()
 		for e := b.list.Front(); e != nil; e = e.Next() {
-			p := e.Value.(uint64)
-			fmt.Printf("\t\t- %d\n", p)
+			p := e.Value.(peer.ID)
+			fmt.Printf("\t\t- %s\n", p.Pretty())
 		}
 		b.lk.RUnlock()
 	}
