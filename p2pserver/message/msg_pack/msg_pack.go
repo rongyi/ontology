@@ -28,6 +28,7 @@ import (
 	msgCommon "github.com/ontio/ontology/p2pserver/common"
 	mt "github.com/ontio/ontology/p2pserver/message/types"
 	p2pnet "github.com/ontio/ontology/p2pserver/net/protocol"
+	dp "github.com/ontio/ontology/p2pserver/dht/peer"
 )
 
 //Peer address package
@@ -206,7 +207,7 @@ func NewConsensusDataReq(hash common.Uint256) mt.Message {
 	return &dataReq
 }
 
-func NewFindNodeReq(id uint64) mt.Message {
+func NewFindNodeReq(id dp.ID) mt.Message {
 	req := mt.FindNodeReq{
 		TargetID: id,
 	}

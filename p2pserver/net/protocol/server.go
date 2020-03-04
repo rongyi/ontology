@@ -23,6 +23,8 @@ import (
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/p2pserver/peer"
+
+	dp "github.com/ontio/ontology/p2pserver/dht/peer"
 )
 
 //P2P represent the net interface of p2p package
@@ -65,9 +67,9 @@ type P2P interface {
 	IsOwnAddress(addr string) bool
 	IsAddrFromConnecting(addr string) bool
 
-	UpdateDHT(id uint64) bool
-	RemoveDHT(id uint64) bool
-	BetterPeers(id uint64, count int) []uint64
+	UpdateDHT(id dp.ID) bool
+	RemoveDHT(id dp.ID) bool
+	BetterPeers(id dp.ID, count int) []dp.ID
 
 	GetPeerStringAddr() map[uint64]string
 }

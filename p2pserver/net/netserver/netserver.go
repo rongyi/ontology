@@ -19,7 +19,6 @@
 package netserver
 
 import (
-	"context"
 	"errors"
 	"math/rand"
 	"net"
@@ -33,6 +32,7 @@ import (
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/common/set"
 	"github.com/ontio/ontology/p2pserver/dht"
+	dp "github.com/ontio/ontology/p2pserver/dht/peer"
 	"github.com/ontio/ontology/p2pserver/message/msg_pack"
 	"github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/p2pserver/net/protocol"
@@ -123,7 +123,7 @@ func (this *NetServer) init() error {
 	this.inConnRecord.InConnectingAddrs = set.NewStringSet()
 	this.outConnRecord.OutConnectingAddrs = set.NewStringSet()
 
-	dtable, err := dht.New(context.Background(), id)
+	dtable, err := dht.New()
 	if err != nil {
 		panic("fail to create dht")
 	}
@@ -641,17 +641,17 @@ func (this *NetServer) SetOwnAddress(addr string) {
 	}
 }
 
-func (ns *NetServer) UpdateDHT(id uint64) bool {
+func (ns *NetServer) UpdateDHT(id dp.ID) bool {
 	ns.dht.Update(id)
 	return true
 }
 
-func (ns *NetServer) RemoveDHT(id uint64) bool {
+func (ns *NetServer) RemoveDHT(id dp.ID) bool {
 	ns.dht.Remove(id)
 	return true
 }
 
-func (ns *NetServer) BetterPeers(id uint64, count int) []uint64 {
+func (ns *NetServer) BetterPeers(id dp.ID, count int) []dp.ID {
 	return ns.dht.BetterPeers(id, count)
 }
 
@@ -667,10 +667,10 @@ func (ns *NetServer) findSelf() {
 		select {
 		case <-tick.C:
 			log.Debug("[dht] start to find myself")
-			closer := ns.dht.BetterPeers(ns.GetID(), dht.AlphaValue)
+			closer := ns.dht.BetterPeers(ns.GetDHTPeerID(), dht.AlphaValue)
 			for _, pid := range closer {
-				log.Debugf("[dht] find closr peer %d", pid)
-				ns.Send(ns.GetPeer(pid), msgpack.NewFindNodeReq(ns.GetID()))
+				log.Debugf("[dht] find closr peer %s legacy: %d", pid.Pretty(), pid.LegacyID)
+				ns.Send(ns.GetPeer(pid.LegacyID), msgpack.NewFindNodeReq(ns.GetDHTPeerID()))
 			}
 		}
 	}
@@ -693,7 +693,7 @@ func (ns *NetServer) refreshCPL() {
 				closer := ns.dht.BetterPeers(randPeer, dht.AlphaValue)
 				for _, pid := range closer {
 					log.Debugf("[dht] find closr peer %d", pid)
-					ns.Send(ns.GetPeer(pid), msgpack.NewFindNodeReq(randPeer))
+					ns.Send(ns.GetPeer(pid.LegacyID), msgpack.NewFindNodeReq(randPeer))
 				}
 			}
 		}
@@ -703,4 +703,12 @@ func (ns *NetServer) refreshCPL() {
 func (ns *NetServer) doRefresh() {
 	go ns.findSelf()
 	go ns.refreshCPL()
+}
+
+func (ns *NetServer) GetDHTPeerID() dp.ID {
+	ret := dp.ID{
+		LegacyID: ns.GetID(),
+		ID:       ns.dht.GetLocal().ID,
+	}
+	return ret
 }
