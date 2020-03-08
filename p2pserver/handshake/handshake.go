@@ -82,6 +82,16 @@ func HandshakeClient(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Con
 		return nil, err
 	}
 
+	msg, _, err = types.ReadMessage(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	// 6. receive verack
+	if _, ok := msg.(*types.VerACK); !ok {
+		return nil, fmt.Errorf("handshake failed, expect verack message, got %s", msg.CmdType())
+	}
+
 	return createPeerInfo(receivedVersion, kid), nil
 }
 

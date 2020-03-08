@@ -44,7 +44,7 @@ func (self *Conn) Close() error {
 	self.controller.inoutbounds[self.boundIndex].Remove(self.addr)
 
 	p := self.controller.peers[self.kid]
-	if p.peer == nil {
+	if p == nil || p.peer == nil {
 		log.Fatalf("connection %s not in controller", self.kid.ToHexString())
 	} else if p.connectId == self.connectId { // connection not replaced
 		delete(self.controller.peers, self.kid)
