@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/ontio/ontology/p2pserver/protocols"
 	"net"
 	"os"
 	"testing"
@@ -108,7 +109,6 @@ func TestAddrReqHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(0x7533345)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
@@ -128,7 +128,8 @@ func TestAddrReqHandle(t *testing.T) {
 	}
 
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	// all neighbor peers should be in rsp msg
 	for _, msg := range network.SentMsgs {
@@ -150,27 +151,25 @@ func TestAddrReqHandle(t *testing.T) {
 	network.DelNbrNode(testID.ToUint64())
 }
 
-//
 // create two neighbors, one masked, one un-masked
 // send addr-req from un-mask peer, get itself in addr-rsp
-//
 func TestAddrReqHandle_maskok(t *testing.T) {
 	network = NewMockP2p()
 
 	// Simulate a remote peer to be added to the neighbor peers
 	testID := kbucket.PseudoKadIdFromUint64(123456)
+	info := peer.NewPeerInfo(testID, 1, 12345678, true, 0, 20336, 12345, "1.5.2")
 	remotePeer := peer.NewPeer()
-	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
-		testID, 0, 12345, "1.5.2")
+	remotePeer.SetInfo(info)
 	remotePeer.Link.SetAddr("1.2.3.4:5001")
 	remotePeer.Link.SetPort(5001)
 	network.AddNbrNode(remotePeer)
 	remotePeer.SetState(msgCommon.ESTABLISH)
 
 	testID2 := kbucket.PseudoKadIdFromUint64(1234567)
+	info2 := peer.NewPeerInfo(testID2, 1, 12345678, true, 0, 20336, 12345, "1.5.2")
 	remotePeer2 := peer.NewPeer()
-	remotePeer2.UpdateInfo(time.Now(), 1, 12345678, 20336,
-		testID2, 0, 12345, "1.5.2")
+	remotePeer2.SetInfo(info2)
 	remotePeer2.Link.SetAddr("1.2.3.5:5002")
 	remotePeer2.Link.SetPort(5002)
 	network.AddNbrNode(remotePeer2)
@@ -187,9 +186,9 @@ func TestAddrReqHandle_maskok(t *testing.T) {
 
 	config.DefConfig.P2PNode.ReservedPeersOnly = true
 	config.DefConfig.P2PNode.ReservedCfg.MaskPeers = []string{"1.2.3.4"}
-
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	// verify 1.2.3.4 is masked
 	for _, msg := range network.SentMsgs {
@@ -211,10 +210,15 @@ func TestAddrReqHandle_maskok(t *testing.T) {
 	network.DelNbrNode(testID.ToUint64())
 }
 
-//
+func newContext(t *testing.T, msg *types.MsgPayload, n p2p.P2P) *protocols.Context {
+	sender := n.GetPeer(msg.Id)
+	assert.NotNil(t, sender)
+
+	return protocols.NewContext(sender, n, nil, msg.PayloadSize)
+}
+
 // create one masked neighbor
 // send addr-req, get itself in addr-rsp
-//
 func TestAddrReqHandle_unmaskok(t *testing.T) {
 	network = NewMockP2p()
 
@@ -222,7 +226,6 @@ func TestAddrReqHandle_unmaskok(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
@@ -245,7 +248,8 @@ func TestAddrReqHandle_unmaskok(t *testing.T) {
 	config.DefConfig.P2PNode.ReservedCfg.MaskPeers = []string{"1.2.3.4"}
 
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	for _, msg := range network.SentMsgs {
 		addrMsg, ok := msg.(*types.Addr)
@@ -272,8 +276,6 @@ func TestHeadersReqHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
-
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -291,7 +293,8 @@ func TestHeadersReqHandle(t *testing.T) {
 	}
 
 	// Invoke HeadersReqhandle to handle the msg
-	HeadersReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	HeadersReqHandle(ctx, buf.(*types.HeadersReq))
 	network.DelNbrNode(testID.ToUint64())
 }
 
@@ -301,7 +304,6 @@ func TestPingHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -320,7 +322,8 @@ func TestPingHandle(t *testing.T) {
 	}
 
 	// Invoke PingHandle to handle the msg
-	PingHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	PingHandle(ctx, buf)
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -331,7 +334,6 @@ func TestPongHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -350,7 +352,8 @@ func TestPongHandle(t *testing.T) {
 	}
 
 	// Invoke PingHandle to handle the msg
-	PongHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	PongHandle(ctx, buf)
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -361,7 +364,6 @@ func TestBlkHeaderHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336, testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
 
@@ -375,15 +377,19 @@ func TestBlkHeaderHandle(t *testing.T) {
 	assert.Nil(t, err)
 
 	buf := msgpack.NewHeaders(headers)
-
+	sink := common.NewZeroCopySink(nil)
+	types.WriteMessage(sink, buf)
+	realHeaderMsg, _, err := types.ReadMessage(bytes.NewBuffer(sink.Bytes()))
+	assert.Nil(t, err)
 	msg := &types.MsgPayload{
 		Id:      testID.ToUint64(),
 		Addr:    "127.0.0.1:50010",
-		Payload: buf,
+		Payload: realHeaderMsg,
 	}
 
 	// Invoke BlkHeaderHandle to handle the msg
-	BlkHeaderHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	BlkHeaderHandle(ctx, realHeaderMsg.(*types.BlkHeader))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -394,7 +400,6 @@ func TestBlockHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(123456)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -419,27 +424,10 @@ func TestBlockHandle(t *testing.T) {
 	}
 
 	// Invoke BlockHandle to handle the msg
-	BlockHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	BlockHandle(ctx, buf.(*types.Block))
 
 	network.DelNbrNode(testID.ToUint64())
-}
-
-// TestNotFoundHandle tests Function NotFoundHandle handling a not found message
-func TestNotFoundHandle(t *testing.T) {
-	tempStr := "3369930accc1ddd067245e8edadcd9bea207ba5e1753ac18a51df77a343bfe92"
-	hex, _ := hex.DecodeString(tempStr)
-	var hash common.Uint256
-	hash.Deserialize(bytes.NewReader(hex))
-
-	buf := msgpack.NewNotFound(hash)
-
-	msg := &types.MsgPayload{
-		Id:      0,
-		Addr:    "127.0.0.1:50010",
-		Payload: buf,
-	}
-
-	NotFoundHandle(msg, network, nil)
 }
 
 // TestTransactionHandle tests Function TransactionHandle handling a transaction message
@@ -462,7 +450,8 @@ func TestTransactionHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	TransactionHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	TransactionHandle(ctx, buf.(*types.Trn))
 }
 
 // TestAddrHandle tests Function AddrHandle handling a neighbor address response message
@@ -475,7 +464,8 @@ func TestAddrHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	AddrHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrHandle(ctx, buf.(*types.Addr))
 }
 
 // TestDataReqHandle tests Function DataReqHandle handling a data req(block/Transaction)
@@ -483,7 +473,6 @@ func TestDataReqHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(0x7533345)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -500,7 +489,8 @@ func TestDataReqHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	DataReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	DataReqHandle(ctx, buf.(*types.DataReq))
 
 	tempStr := "3369930accc1ddd067245e8edadcd9bea207ba5e1753ac18a51df77a343bfe92"
 	hex, _ := hex.DecodeString(tempStr)
@@ -513,7 +503,8 @@ func TestDataReqHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	DataReqHandle(msg, network, nil)
+	ctx = newContext(t, msg, network)
+	DataReqHandle(ctx, buf.(*types.DataReq))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -523,7 +514,6 @@ func TestInvHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(0x7533345)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -543,7 +533,8 @@ func TestInvHandle(t *testing.T) {
 		Payload: buffer,
 	}
 
-	InvHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	InvHandle(ctx, buffer.(*types.Inv))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -553,7 +544,6 @@ func TestDisconnectHandle(t *testing.T) {
 	testID := kbucket.PseudoKadIdFromUint64(0x7533345)
 
 	remotePeer := peer.NewPeer()
-	assert.NotNil(t, remotePeer)
 	remotePeer.UpdateInfo(time.Now(), 1, 12345678, 20336,
 		testID, 0, 12345, "1.5.2")
 	remotePeer.Link.SetAddr("127.0.0.1:50010")
@@ -566,7 +556,8 @@ func TestDisconnectHandle(t *testing.T) {
 		Payload: &types.Disconnected{},
 	}
 
-	DisconnectHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	DisconnectHandle(ctx)
 
 	network.DelNbrNode(testID.ToUint64())
 }
