@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/ontio/ontology/p2pserver/protocols"
 	"net"
 	"os"
 	"testing"
@@ -127,7 +128,8 @@ func TestAddrReqHandle(t *testing.T) {
 	}
 
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	// all neighbor peers should be in rsp msg
 	for _, msg := range network.SentMsgs {
@@ -186,7 +188,8 @@ func TestAddrReqHandle_maskok(t *testing.T) {
 	config.DefConfig.P2PNode.ReservedCfg.MaskPeers = []string{"1.2.3.4"}
 
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	// verify 1.2.3.4 is masked
 	for _, msg := range network.SentMsgs {
@@ -206,6 +209,13 @@ func TestAddrReqHandle_maskok(t *testing.T) {
 	}
 
 	network.DelNbrNode(testID.ToUint64())
+}
+
+func newContext(t *testing.T, msg *types.MsgPayload, n p2p.P2P) *protocols.Context {
+	sender := n.GetPeer(msg.Id)
+	assert.NotNil(t, sender)
+
+	return protocols.NewContext(sender, n, nil, msg.PayloadSize)
 }
 
 // create one masked neighbor
@@ -239,7 +249,8 @@ func TestAddrReqHandle_unmaskok(t *testing.T) {
 	config.DefConfig.P2PNode.ReservedCfg.MaskPeers = []string{"1.2.3.4"}
 
 	// Invoke AddrReqHandle to handle the msg
-	AddrReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrReqHandle(ctx)
 
 	for _, msg := range network.SentMsgs {
 		addrMsg, ok := msg.(*types.Addr)
@@ -283,7 +294,8 @@ func TestHeadersReqHandle(t *testing.T) {
 	}
 
 	// Invoke HeadersReqhandle to handle the msg
-	HeadersReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	HeadersReqHandle(ctx, buf.(*types.HeadersReq))
 	network.DelNbrNode(testID.ToUint64())
 }
 
@@ -311,7 +323,8 @@ func TestPingHandle(t *testing.T) {
 	}
 
 	// Invoke PingHandle to handle the msg
-	PingHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	PingHandle(ctx, buf)
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -340,7 +353,8 @@ func TestPongHandle(t *testing.T) {
 	}
 
 	// Invoke PingHandle to handle the msg
-	PongHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	PongHandle(ctx, buf)
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -372,7 +386,8 @@ func TestBlkHeaderHandle(t *testing.T) {
 	}
 
 	// Invoke BlkHeaderHandle to handle the msg
-	BlkHeaderHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	BlkHeaderHandle(ctx, buf.(*types.BlkHeader))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -407,7 +422,8 @@ func TestBlockHandle(t *testing.T) {
 	}
 
 	// Invoke BlockHandle to handle the msg
-	BlockHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	BlockHandle(ctx, buf.(*types.Block))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -432,7 +448,8 @@ func TestTransactionHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	TransactionHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	TransactionHandle(ctx, buf.(*types.Trn))
 }
 
 // TestAddrHandle tests Function AddrHandle handling a neighbor address response message
@@ -445,7 +462,8 @@ func TestAddrHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	AddrHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	AddrHandle(ctx, buf.(*types.Addr))
 }
 
 // TestDataReqHandle tests Function DataReqHandle handling a data req(block/Transaction)
@@ -469,7 +487,8 @@ func TestDataReqHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	DataReqHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	DataReqHandle(ctx, buf.(*types.DataReq))
 
 	tempStr := "3369930accc1ddd067245e8edadcd9bea207ba5e1753ac18a51df77a343bfe92"
 	hex, _ := hex.DecodeString(tempStr)
@@ -482,7 +501,8 @@ func TestDataReqHandle(t *testing.T) {
 		Payload: buf,
 	}
 
-	DataReqHandle(msg, network, nil)
+	ctx = newContext(t, msg, network)
+	DataReqHandle(ctx, buf.(*types.DataReq))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -511,7 +531,8 @@ func TestInvHandle(t *testing.T) {
 		Payload: buffer,
 	}
 
-	InvHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	InvHandle(ctx, buffer.(*types.Inv))
 
 	network.DelNbrNode(testID.ToUint64())
 }
@@ -533,7 +554,8 @@ func TestDisconnectHandle(t *testing.T) {
 		Payload: &types.Disconnected{},
 	}
 
-	DisconnectHandle(msg, network, nil)
+	ctx := newContext(t, msg, network)
+	DisconnectHandle(ctx)
 
 	network.DelNbrNode(testID.ToUint64())
 }

@@ -243,7 +243,7 @@ func (this *NetServer) removeOldPeer(kid kbucket.KadId, remoteAddr string) {
 	if p != nil {
 		n, delOK := this.DelNbrNode(kid.ToUint64())
 		if delOK {
-			log.Infof("[createPeer]peer reconnect %d", kid.ToHexString(), remoteAddr)
+			log.Infof("[p2p] peer reconnect %s, addr: %s", kid.ToHexString(), remoteAddr)
 			// Close the connection and release the node source
 			n.Close()
 			if this.pid != nil {
