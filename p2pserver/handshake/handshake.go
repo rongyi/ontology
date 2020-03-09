@@ -22,6 +22,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/blang/semver"
 	common2 "github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/dht/kbucket"
@@ -58,7 +59,7 @@ func HandshakeClient(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Con
 
 	// 3. update kadId
 	kid := kbucket.PseudoKadIdFromUint64(receivedVersion.P.Nonce)
-	if receivedVersion.P.SoftVersion > "v1.9.0" {
+	if supportDHT(receivedVersion.P.SoftVersion) {
 		err = sendMsg(conn, &types.UpdateKadId{KadKeyId: selfId})
 		if err != nil {
 			return nil, err
@@ -199,4 +200,20 @@ func newVersion(peerInfo *peer.PeerInfo) *types.Version {
 	}
 
 	return &version
+}
+
+func supportDHT(version string) bool {
+	if version == "" {
+		return false
+	}
+	v1, err := semver.ParseTolerant(version)
+	if err != nil {
+		return false
+	}
+	min, err := semver.ParseTolerant("1.9.0-beta")
+	if err != nil {
+		panic(err) // enforced by testcase
+	}
+
+	return v1.GTE(min)
 }

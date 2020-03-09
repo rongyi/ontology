@@ -18,14 +18,15 @@
 package handshake
 
 import (
-	"github.com/ontio/ontology/p2pserver/dht/kbucket"
-	"github.com/ontio/ontology/p2pserver/message/types"
-	"github.com/ontio/ontology/p2pserver/peer"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/ontio/ontology/p2pserver/dht/kbucket"
+	"github.com/ontio/ontology/p2pserver/message/types"
+	"github.com/ontio/ontology/p2pserver/peer"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -106,4 +107,20 @@ func TestHandshakeWrongMsg(t *testing.T) {
 	_, err := HandshakeServer(server.Info, server.Id, server.Conn)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "expected version message")
+}
+
+func TestVersion(t *testing.T) {
+	assert.True(t, supportDHT("1.9.0"))
+	assert.True(t, supportDHT("v1.10.0"))
+	assert.True(t, supportDHT("v1.10"))
+	assert.True(t, supportDHT("v2.0"))
+	assert.True(t, supportDHT("v1.9.0"))
+	assert.True(t, supportDHT("1.9.0-beta"))
+	assert.True(t, supportDHT("v1.9.0-beta"))
+	assert.True(t, supportDHT("1.9.0-beta-9"))
+	assert.True(t, supportDHT("1.9.0-beta-9-geeaeewwf"))
+
+	assert.False(t, supportDHT("1.9.0-alpha"))
+	assert.False(t, supportDHT("1.8.0-beta-9-geeaeewwf"))
+	assert.False(t, supportDHT("1.8.0"))
 }
