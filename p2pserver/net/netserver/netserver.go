@@ -21,7 +21,6 @@ package netserver
 import (
 	"errors"
 	"fmt"
-	"github.com/ontio/ontology/p2pserver/connect_controller"
 	"net"
 	"strings"
 	"sync"
@@ -31,6 +30,7 @@ import (
 	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
+	"github.com/ontio/ontology/p2pserver/connect_controller"
 	"github.com/ontio/ontology/p2pserver/dht"
 	"github.com/ontio/ontology/p2pserver/dht/kbucket"
 	"github.com/ontio/ontology/p2pserver/message/msg_pack"
