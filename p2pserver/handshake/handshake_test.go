@@ -18,18 +18,19 @@
 package handshake
 
 import (
-	"net"
-	"sync"
-	"testing"
-
 	"github.com/ontio/ontology/p2pserver/dht/kbucket"
 	"github.com/ontio/ontology/p2pserver/message/types"
 	"github.com/ontio/ontology/p2pserver/peer"
 	"github.com/stretchr/testify/assert"
+	"net"
+	"sync"
+	"testing"
+	"time"
 )
 
 func init() {
 	kbucket.Difficulty = 1
+	HANDSHAKE_DURATION = 1 * time.Second
 }
 
 type Node struct {
@@ -63,20 +64,28 @@ func TestHandshakeNormal(t *testing.T) {
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
+	result := make([]struct {
+		info [2]*peer.PeerInfo
+		err  error
+	}, 2)
 	go func() {
-		peer, err := HandshakeClient(client.Info, client.Id, client.Conn)
-		assert.Nil(t, err)
-		assert.Equal(t, peer.Id, server.Id.Id)
+		info, err := HandshakeClient(client.Info, client.Id, client.Conn)
+		result[0].err = err
+		result[0].info = [2]*peer.PeerInfo{info, server.Info}
 		wg.Done()
 	}()
 	go func() {
-		peer, err := HandshakeServer(server.Info, server.Id, server.Conn)
-		assert.Nil(t, err)
-		assert.Equal(t, peer.Id, client.Id.Id)
+		info, err := HandshakeServer(server.Info, server.Id, server.Conn)
+		result[1].err = err
+		result[1].info = [2]*peer.PeerInfo{info, client.Info}
 		wg.Done()
 	}()
-
 	wg.Wait()
+
+	for _, res := range result {
+		assert.Nil(t, res.err)
+		assert.Equal(t, res.info[0], res.info[1])
+	}
 }
 
 func TestHandshakeTimeout(t *testing.T) {

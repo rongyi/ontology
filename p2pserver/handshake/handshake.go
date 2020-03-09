@@ -29,7 +29,7 @@ import (
 	"github.com/ontio/ontology/p2pserver/peer"
 )
 
-const HANDSHAKE_DURATION = 10 * time.Second // handshake time can not exceed this duration, or will treat as attack.
+var HANDSHAKE_DURATION = 10 * time.Second // handshake time can not exceed this duration, or will treat as attack.
 
 func HandshakeClient(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Conn) (*peer.PeerInfo, error) {
 	version := newVersion(info)
@@ -146,6 +146,12 @@ func HandshakeServer(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Con
 	}
 	if msg.CmdType() != common.VERACK_TYPE {
 		return nil, fmt.Errorf("[HandshakeServer] expected version ack message")
+	}
+
+	// 6. sendMsg ack
+	err = sendMsg(conn, &types.VerACK{})
+	if err != nil {
+		return nil, err
 	}
 
 	return createPeerInfo(version, kid), nil
