@@ -59,7 +59,7 @@ func HandshakeClient(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Con
 
 	// 3. update kadId
 	kid := kbucket.PseudoKadIdFromUint64(receivedVersion.P.Nonce)
-	if supportDHT(receivedVersion.P.SoftVersion) {
+	if useDHT(receivedVersion.P.SoftVersion, info.SoftVersion) {
 		err = sendMsg(conn, &types.UpdateKadId{KadKeyId: selfId})
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func HandshakeServer(info *peer.PeerInfo, selfId *kbucket.KadKeyId, conn net.Con
 
 	// 3. read update kadkey id
 	kid := kbucket.PseudoKadIdFromUint64(version.P.Nonce)
-	if version.P.SoftVersion > "v1.9.0" {
+	if useDHT(version.P.SoftVersion, info.SoftVersion) {
 		msg, _, err := types.ReadMessage(conn)
 		if err != nil {
 			return nil, fmt.Errorf("[HandshakeServer] ReadMessage failed, error: %s", err)
@@ -200,6 +200,13 @@ func newVersion(peerInfo *peer.PeerInfo) *types.Version {
 	}
 
 	return &version
+}
+
+func useDHT(client, server string) bool {
+	// we make this symmetric, because config.Version is depend on compile option, so to avoid the case:
+	// remote version is 1.9.0 and we support DHT, but the config.Version is not valid.
+	// remote will decide to not use DHT, but we will decide to use DHT, lead to handshake failure.
+	return supportDHT(client) && supportDHT(server)
 }
 
 func supportDHT(version string) bool {

@@ -18,6 +18,7 @@
 package handshake
 
 import (
+	"math/rand"
 	"net"
 	"sync"
 	"testing"
@@ -62,30 +63,36 @@ func NewPair() (client Node, server Node) {
 
 func TestHandshakeNormal(t *testing.T) {
 	client, server := NewPair()
+	versions := []string{"v1.8.0", "v1.7.0", "v1.9.0", "v1.9.0-beta", "v1.20"}
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	result := make([]struct {
-		info [2]*peer.PeerInfo
-		err  error
-	}, 2)
-	go func() {
-		info, err := HandshakeClient(client.Info, client.Id, client.Conn)
-		result[0].err = err
-		result[0].info = [2]*peer.PeerInfo{info, server.Info}
-		wg.Done()
-	}()
-	go func() {
-		info, err := HandshakeServer(server.Info, server.Id, server.Conn)
-		result[1].err = err
-		result[1].info = [2]*peer.PeerInfo{info, client.Info}
-		wg.Done()
-	}()
-	wg.Wait()
+	for i := 0; i < 100; i++ {
+		client.Info.SoftVersion = versions[rand.Intn(len(versions))]
+		server.Info.SoftVersion = versions[rand.Intn(len(versions))]
 
-	for _, res := range result {
-		assert.Nil(t, res.err)
-		assert.Equal(t, res.info[0], res.info[1])
+		wg := sync.WaitGroup{}
+		wg.Add(2)
+		result := make([]struct {
+			info [2]*peer.PeerInfo
+			err  error
+		}, 2)
+		go func() {
+			info, err := HandshakeClient(client.Info, client.Id, client.Conn)
+			result[0].err = err
+			result[0].info = [2]*peer.PeerInfo{info, server.Info}
+			wg.Done()
+		}()
+		go func() {
+			info, err := HandshakeServer(server.Info, server.Id, server.Conn)
+			result[1].err = err
+			result[1].info = [2]*peer.PeerInfo{info, client.Info}
+			wg.Done()
+		}()
+		wg.Wait()
+
+		for _, res := range result {
+			assert.Nil(t, res.err)
+			assert.Equal(t, res.info[0].Id.ToUint64(), res.info[1].Id.ToUint64())
+		}
 	}
 }
 
