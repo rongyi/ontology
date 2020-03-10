@@ -130,13 +130,15 @@ func (self *ConnectController) removeConnecting(addr string) {
 	self.connecting.Remove(addr)
 }
 
+// remoteAddr is conn.RemoteAddr.String() ==> "192.168.1.1:63213"
 func (self *ConnectController) checkReservedPeers(remoteAddr string) error {
 	if len(self.ReservedPeers) == 0 {
 		return nil
 	}
+	ipPart := remoteAddr[:strings.Index(remoteAddr, ":")]
 
-	for _, addr := range self.ReservedPeers {
-		if strings.HasPrefix(remoteAddr, addr) {
+	for _, curIP := range self.ReservedPeers {
+		if curIP == ipPart {
 			return nil
 		}
 	}

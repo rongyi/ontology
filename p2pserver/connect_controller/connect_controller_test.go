@@ -25,6 +25,7 @@ import (
 	"github.com/ontio/ontology/p2pserver/handshake"
 	"github.com/ontio/ontology/p2pserver/peer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -208,4 +209,14 @@ func checkServer(t *testing.T, client, server *Node, clientConns []net.Conn, i i
 	assert.Equal(t, server.connecting.Size(), 0)
 	clientConns = append(clientConns, conn)
 	return clientConns
+}
+
+func TestReservePeer(t *testing.T) {
+	a := require.New(t)
+	cc := &ConnectController{}
+	cc.ReservedPeers = []string{"192.168.1.1"}
+	a.Nil(cc.checkReservedPeers("192.168.1.1:123"), "should in reserve ip list")
+	a.NotNil(cc.checkReservedPeers("192.168.1.11:1024"), "should not in reserve ip list")
+	a.NotNil(cc.checkReservedPeers("192.168.1.111:1024"), "should not in reserve ip list")
+	a.NotNil(cc.checkReservedPeers("192.168.1.234:234"), "should not in reserve ip list")
 }
