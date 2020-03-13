@@ -433,6 +433,6 @@ func (ns *NetServer) ConnectController() *connect_controller.ConnectController {
 	return ns.connCtrl
 }
 
-func (ns *NetServer) Protocol() protocols.Protocol {
+func (ns *NetServer) Protocol() p2p.Protocol {
 	return ns.protocol
 }
