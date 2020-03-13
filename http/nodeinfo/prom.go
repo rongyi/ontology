@@ -98,7 +98,6 @@ func metricUpdate(n p2p.P2P) {
 	for _, curPeer := range peers {
 		id := curPeer.GetID()
 
-		curPeer.GetHeight()
 		// label: IP PeedID
 		peerStatusMetric.WithLabelValues(curPeer.GetAddr(), id.ToHexString()).Set(float64(curPeer.GetHeight()))
 	}
