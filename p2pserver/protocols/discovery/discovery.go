@@ -134,20 +134,13 @@ func (self *Discovery) FindNodeHandle(ctx *p2p.Context, freq *types.FindNodeReq)
 		}
 		return
 	}
-	// search dht
-	closer := self.dht.BetterPeers(freq.TargetID, dht.AlphaValue)
 
-	for _, pair := range closer {
-		curAddr := types.PeerAddr{
-			Addr:   pair.Address,
-			PeerID: pair.ID,
-		}
-		fresp.CloserPeers = append(fresp.CloserPeers, curAddr)
-	}
 	fresp.TargetID = freq.TargetID
+	// search dht
+	fresp.CloserPeers = self.dht.BetterPeers(freq.TargetID, dht.AlphaValue)
 	log.Debugf("[dht] find %d more closer peers:", len(fresp.CloserPeers))
 	for _, curpa := range fresp.CloserPeers {
-		log.Debugf("    dht: pid: %s, addr: %s", curpa.PeerID.ToHexString(), curpa.Addr)
+		log.Debugf("    dht: pid: %s, addr: %s", curpa.ID.ToHexString(), curpa.Address)
 	}
 
 	if err := remotePeer.Send(&fresp); err != nil {
@@ -164,14 +157,14 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 	// we should connect to closer peer to ask them them where should we go
 	for _, curpa := range fresp.CloserPeers {
 		// already connected
-		if p2p.GetPeer(curpa.PeerID) != nil {
+		if p2p.GetPeer(curpa.ID) != nil {
 			continue
 		}
 		// do nothing about
-		if curpa.PeerID == p2p.GetID() {
+		if curpa.ID == p2p.GetID() {
 			continue
 		}
-		log.Debugf("[dht] try to connect to another peer by dht: %s ==> %s", curpa.PeerID.ToHexString(), curpa.Addr)
-		go p2p.Connect(curpa.Addr)
+		log.Debugf("[dht] try to connect to another peer by dht: %s ==> %s", curpa.ID.ToHexString(), curpa.Address)
+		go p2p.Connect(curpa.Address)
 	}
 }
