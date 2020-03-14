@@ -19,8 +19,11 @@
 package discovery
 
 import (
+	"net"
+	"strconv"
 	"time"
 
+	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/dht"
@@ -166,5 +169,66 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 		}
 		log.Debugf("[dht] try to connect to another peer by dht: %s ==> %s", curpa.ID.ToHexString(), curpa.Address)
 		go p2p.Connect(curpa.Address)
+	}
+}
+
+func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
+	remotePeer := ctx.Sender()
+	p2p := ctx.Network()
+
+	addrStr := p2p.GetNeighborAddrs()
+	//check mask peers
+	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
+	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 {
+		mskPeerMap := make(map[string]bool)
+		for _, mskAddr := range mskPeers {
+			mskPeerMap[mskAddr] = true
+		}
+
+		// get remote peer IP
+		// if get remotePeerAddr failed, do masking anyway
+		remoteAddr, _ := remotePeer.GetAddr16()
+		var remoteIP net.IP = remoteAddr[:]
+
+		// remove msk peers from neigh-addr-list
+		// if remotePeer is in msk-list, skip masking
+		if _, isMskPeer := mskPeerMap[remoteIP.String()]; !isMskPeer {
+			mskAddrList := make([]common.PeerAddr, 0)
+			for _, addr := range addrStr {
+				ip := net.IP(addr.IpAddr[:])
+				address := ip.To16().String()
+				if _, present := mskPeerMap[address]; !present {
+					mskAddrList = append(mskAddrList, addr)
+				}
+			}
+			// replace with mskAddrList
+			addrStr = mskAddrList
+		}
+	}
+
+	msg := msgpack.NewAddrs(addrStr)
+	err := remotePeer.Send(msg)
+
+	if err != nil {
+		log.Warn(err)
+		return
+	}
+}
+
+func (self *Discovery) AddrHandle(ctx *p2p.Context, msg *types.Addr) {
+	p2p := ctx.Network()
+	for _, v := range msg.NodeAddrs {
+		if v.Port == 0 || v.ID == p2p.GetID() {
+			continue
+		}
+		ip := net.IP(v.IpAddr[:])
+		address := ip.To16().String() + ":" + strconv.Itoa(int(v.Port))
+
+		if p2p.NodeEstablished(v.ID) {
+			continue
+		}
+
+		log.Debug("[p2p]connect ip address:", address)
+		go p2p.Connect(address)
 	}
 }
