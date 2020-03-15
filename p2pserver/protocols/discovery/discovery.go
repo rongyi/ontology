@@ -141,6 +141,34 @@ func (self *Discovery) FindNodeHandle(ctx *p2p.Context, freq *types.FindNodeReq)
 	fresp.TargetID = freq.TargetID
 	// search dht
 	fresp.CloserPeers = self.dht.BetterPeers(freq.TargetID, dht.AlphaValue)
+
+	//hide mask node if nessary
+	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
+	remoteAddr, _ := remotePeer.GetAddr16()
+	remoteIP := net.IP(remoteAddr[:])
+	mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
+
+	// mask peer see everyone, but other's will not see mask node
+	// if remotePeer is in msk-list, give them everthing
+	// not in mask set means they are in the other side
+	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 && !mskSet.Has(remoteIP.String()) {
+		mskedAddrs := make([]common.PeerIDAddressPair, 0)
+		// filter out the masked node
+		for _, pair := range fresp.CloserPeers {
+			ip, _, err := net.SplitHostPort(pair.Address)
+			if err != nil {
+				continue
+			}
+			// hide mask node
+			if mskSet.Has(ip) {
+				continue
+			}
+			mskedAddrs = append(mskedAddrs, pair)
+		}
+		// replace with masked nodes
+		fresp.CloserPeers = mskedAddrs
+	}
+
 	log.Debugf("[dht] find %d more closer peers:", len(fresp.CloserPeers))
 	for _, curpa := range fresp.CloserPeers {
 		log.Debugf("    dht: pid: %s, addr: %s", curpa.ID.ToHexString(), curpa.Address)
@@ -210,30 +238,29 @@ func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
 	addrs := self.neighborAddresses()
 	//check mask peers
 	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
-	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 {
-		mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
-		// get remote peer IP
-		// if get remotePeerAddr failed, do masking anyway
-		remoteAddr, _ := remotePeer.GetAddr16()
-		var remoteIP net.IP = remoteAddr[:]
 
-		// remove msk peers from neigh-addr-list
-		// if remotePeer is in msk-list, skip masking
-		// mask peer see everyone, but other's will not see mask node
-		if !mskSet.Has(remoteIP.String()) {
-			mskedAddrs := make([]common.PeerAddr, 0)
-			for _, addr := range addrs {
-				ip := net.IP(addr.IpAddr[:])
-				address := ip.To16().String()
-				// hide mask node
-				if mskSet.Has(address) {
-					continue
-				}
-				mskedAddrs = append(mskedAddrs, addr)
+	mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
+	// get remote peer IP
+	// if get remotePeerAddr failed, do masking anyway
+	remoteAddr, _ := remotePeer.GetAddr16()
+	remoteIP := net.IP(remoteAddr[:])
+
+	// mask peer see everyone, but other's will not see mask node
+	// if remotePeer is in msk-list, give them everthing
+	// not in mask set means they are in the other side
+	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 && !mskSet.Has(remoteIP.String()) {
+		mskedAddrs := make([]common.PeerAddr, 0)
+		for _, addr := range addrs {
+			ip := net.IP(addr.IpAddr[:])
+			address := ip.To16().String()
+			// hide mask node
+			if mskSet.Has(address) {
+				continue
 			}
-			// replace with mskAddrList
-			addrs = mskedAddrs
+			mskedAddrs = append(mskedAddrs, addr)
 		}
+		// replace with mskedAddrs
+		addrs = mskedAddrs
 	}
 
 	msg := msgpack.NewAddrs(addrs)
