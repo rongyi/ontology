@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/dht"
@@ -31,21 +30,24 @@ import (
 	"github.com/ontio/ontology/p2pserver/message/types"
 	p2p "github.com/ontio/ontology/p2pserver/net/protocol"
 	"github.com/ontio/ontology/p2pserver/peer"
+	"github.com/scylladb/go-set/strset"
 )
 
 type Discovery struct {
-	dht  *dht.DHT
-	net  p2p.P2P
-	id   common.PeerId
-	quit chan bool
+	dht     *dht.DHT
+	net     p2p.P2P
+	id      common.PeerId
+	quit    chan bool
+	maskSet *strset.Set
 }
 
-func NewDiscovery(net p2p.P2P) *Discovery {
+func NewDiscovery(net p2p.P2P, maskLst []string) *Discovery {
 	return &Discovery{
-		id:   net.GetID(),
-		dht:  dht.NewDHT(net.GetID()),
-		net:  net,
-		quit: make(chan bool),
+		id:      net.GetID(),
+		dht:     dht.NewDHT(net.GetID()),
+		net:     net,
+		quit:    make(chan bool),
+		maskSet: strset.New(maskLst...),
 	}
 }
 
@@ -143,15 +145,13 @@ func (self *Discovery) FindNodeHandle(ctx *p2p.Context, freq *types.FindNodeReq)
 	fresp.CloserPeers = self.dht.BetterPeers(freq.TargetID, dht.AlphaValue)
 
 	//hide mask node if nessary
-	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
 	remoteAddr, _ := remotePeer.GetAddr16()
 	remoteIP := net.IP(remoteAddr[:])
-	mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
 
 	// mask peer see everyone, but other's will not see mask node
 	// if remotePeer is in msk-list, give them everthing
 	// not in mask set means they are in the other side
-	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 && !mskSet.Has(remoteIP.String()) {
+	if self.maskSet.Size() > 0 && !self.maskSet.Has(remoteIP.String()) {
 		mskedAddrs := make([]common.PeerIDAddressPair, 0)
 		// filter out the masked node
 		for _, pair := range fresp.CloserPeers {
@@ -160,7 +160,7 @@ func (self *Discovery) FindNodeHandle(ctx *p2p.Context, freq *types.FindNodeReq)
 				continue
 			}
 			// hide mask node
-			if mskSet.Has(ip) {
+			if self.maskSet.Has(ip) {
 				continue
 			}
 			mskedAddrs = append(mskedAddrs, pair)
@@ -236,10 +236,7 @@ func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
 	remotePeer := ctx.Sender()
 
 	addrs := self.neighborAddresses()
-	//check mask peers
-	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
 
-	mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
 	// get remote peer IP
 	// if get remotePeerAddr failed, do masking anyway
 	remoteAddr, _ := remotePeer.GetAddr16()
@@ -248,13 +245,13 @@ func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
 	// mask peer see everyone, but other's will not see mask node
 	// if remotePeer is in msk-list, give them everthing
 	// not in mask set means they are in the other side
-	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 && !mskSet.Has(remoteIP.String()) {
+	if self.maskSet.Size() > 0 && !self.maskSet.Has(remoteIP.String()) {
 		mskedAddrs := make([]common.PeerAddr, 0)
 		for _, addr := range addrs {
 			ip := net.IP(addr.IpAddr[:])
 			address := ip.To16().String()
 			// hide mask node
-			if mskSet.Has(address) {
+			if self.maskSet.Has(address) {
 				continue
 			}
 			mskedAddrs = append(mskedAddrs, addr)

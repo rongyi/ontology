@@ -64,7 +64,7 @@ func NewMsgHandler(ld *ledger.Ledger) *MsgHandler {
 func (self *MsgHandler) start(net p2p.P2P) {
 	self.blockSync = block_sync.NewBlockSyncMgr(net, self.ledger)
 	self.reconnect = reconnect.NewReconectService(net)
-	self.discovery = discovery.NewDiscovery(net)
+	self.discovery = discovery.NewDiscovery(net, config.DefConfig.P2PNode.ReservedCfg.MaskPeers)
 	self.heatBeat = heatbeat.NewHeartBeat(net, self.ledger)
 	self.persistRecentPeerService = recent_peers.NewPersistRecentPeerService(net)
 	go self.persistRecentPeerService.Start()
