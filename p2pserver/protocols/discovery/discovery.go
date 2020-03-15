@@ -172,19 +172,46 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 	}
 }
 
+// neighborAddresses get address from dht routing table
+func (self *Discovery) neighborAddresses() []common.PeerAddr {
+	// e.g. ["127.0.0.1:20338"]
+	ipPortAdds := self.dht.RouteTable().ListPeers()
+	ret := []common.PeerAddr{}
+	for _, curIPPort := range ipPortAdds {
+		host, port, err := net.SplitHostPort(curIPPort.Address)
+		if err != nil {
+			continue
+		}
+
+		ipadd := net.ParseIP(host)
+		if ipadd == nil {
+			continue
+		}
+
+		p, err := strconv.Atoi(port)
+		if err != nil {
+			continue
+		}
+
+		curAddr := common.PeerAddr{
+			Port: uint16(p),
+		}
+		copy(curAddr.IpAddr[:], ipadd.To16())
+
+		ret = append(ret, curAddr)
+	}
+
+	return ret
+}
+
 func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
 	remotePeer := ctx.Sender()
-	p2p := ctx.Network()
 
-	addrStr := p2p.GetNeighborAddrs()
+	addrs := self.neighborAddresses()
 	//check mask peers
 	mskPeers := config.DefConfig.P2PNode.ReservedCfg.MaskPeers
 	if config.DefConfig.P2PNode.ReservedPeersOnly && len(mskPeers) > 0 {
-		mskPeerMap := make(map[string]bool)
-		for _, mskAddr := range mskPeers {
-			mskPeerMap[mskAddr] = true
-		}
-
+		mskSet := config.DefConfig.P2PNode.ReservedCfg.MaskSet()
 		// get remote peer IP
 		// if get remotePeerAddr failed, do masking anyway
 		remoteAddr, _ := remotePeer.GetAddr16()
@@ -192,21 +219,24 @@ func (self *Discovery) AddrReqHandle(ctx *p2p.Context) {
 
 		// remove msk peers from neigh-addr-list
 		// if remotePeer is in msk-list, skip masking
-		if _, isMskPeer := mskPeerMap[remoteIP.String()]; !isMskPeer {
-			mskAddrList := make([]common.PeerAddr, 0)
-			for _, addr := range addrStr {
+		// mask peer see everyone, but other's will not see mask node
+		if !mskSet.Has(remoteIP.String()) {
+			mskedAddrs := make([]common.PeerAddr, 0)
+			for _, addr := range addrs {
 				ip := net.IP(addr.IpAddr[:])
 				address := ip.To16().String()
-				if _, present := mskPeerMap[address]; !present {
-					mskAddrList = append(mskAddrList, addr)
+				// hide mask node
+				if mskSet.Has(address) {
+					continue
 				}
+				mskedAddrs = append(mskedAddrs, addr)
 			}
 			// replace with mskAddrList
-			addrStr = mskAddrList
+			addrs = mskedAddrs
 		}
 	}
 
-	msg := msgpack.NewAddrs(addrStr)
+	msg := msgpack.NewAddrs(addrs)
 	err := remotePeer.Send(msg)
 
 	if err != nil {
