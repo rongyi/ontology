@@ -144,7 +144,7 @@ func (self *Discovery) FindNodeHandle(ctx *p2p.Context, freq *types.FindNodeReq)
 	// search dht
 	fresp.CloserPeers = self.dht.BetterPeers(freq.TargetID, dht.AlphaValue)
 
-	//hide mask node if nessary
+	//hide mask node if necessary
 	remoteAddr, _ := remotePeer.GetAddr16()
 	remoteIP := net.IP(remoteAddr[:])
 

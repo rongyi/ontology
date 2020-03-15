@@ -25,14 +25,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"sync"
 
 	"github.com/ontio/ontology-crypto/keypair"
 	"github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/common/constants"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/errors"
-	"github.com/scylladb/go-set/strset"
 )
 
 var Version = "" //Set value when build project
@@ -518,19 +516,6 @@ type ConsensusConfig struct {
 type P2PRsvConfig struct {
 	ReservedPeers []string `json:"reserved"`
 	MaskPeers     []string `json:"mask"`
-}
-
-var (
-	once   sync.Once
-	mskset *strset.Set
-)
-
-// MaskSet just build a set of MaskPeers
-func (prc *P2PRsvConfig) MaskSet() *strset.Set {
-	once.Do(func() {
-		mskset = strset.New(prc.MaskPeers...)
-	})
-	return mskset
 }
 
 type P2PNodeConfig struct {
