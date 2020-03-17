@@ -36,10 +36,11 @@ import (
 //NewNetServer return the net object in p2p
 func NewNetServer(protocol p2p.Protocol, conf *config.P2PNodeConfig) (*NetServer, error) {
 	n := &NetServer{
-		NetChan:  make(chan *types.MsgPayload, common.CHAN_CAPABILITY),
-		base:     &peer.PeerInfo{},
-		Np:       peer.NewNbrPeers(),
-		protocol: protocol,
+		NetChan:    make(chan *types.MsgPayload, common.CHAN_CAPABILITY),
+		base:       &peer.PeerInfo{},
+		Np:         peer.NewNbrPeers(),
+		protocol:   protocol,
+		stopRecvCh: make(chan bool),
 	}
 
 	err := n.init(conf)
@@ -47,6 +48,22 @@ func NewNetServer(protocol p2p.Protocol, conf *config.P2PNodeConfig) (*NetServer
 		return nil, err
 	}
 	return n, nil
+}
+
+func NewCustomNetServer(id *common.PeerKeyId, info *peer.PeerInfo, proto p2p.Protocol,
+	listener net.Listener, dialer connect_controller.Dialer) *NetServer {
+	n := &NetServer{
+		base:       info,
+		listener:   listener,
+		protocol:   proto,
+		NetChan:    make(chan *types.MsgPayload, common.CHAN_CAPABILITY),
+		Np:         peer.NewNbrPeers(),
+		stopRecvCh: make(chan bool),
+	}
+	opt := connect_controller.NewConnCtrlOption().WithDialer(dialer)
+	n.connCtrl = connect_controller.NewConnectController(info, id, opt)
+
+	return n
 }
 
 //NetServer represent all the actions in net layer

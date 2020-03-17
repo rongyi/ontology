@@ -21,19 +21,23 @@ package mock
 import (
 	"net"
 
+	"github.com/ontio/ontology/p2pserver/net/netserver"
+	p2p "github.com/ontio/ontology/p2pserver/net/protocol"
+	"github.com/ontio/ontology/p2pserver/peer"
+
 	"github.com/ontio/ontology/p2pserver/common"
+	"github.com/ontio/ontology/p2pserver/connect_controller"
 )
 
 type Network interface {
 	NewListener(id common.PeerId) (string, net.Listener)
-	NewDialer(id common.PeerId) Dialer
+	NewDialer(id common.PeerId) connect_controller.Dialer
 	AllowConnect(id1, id2 common.PeerId)
 	DeliverRate(percent uint)
 }
 
-type Dialer interface {
-	Dial(nodeAddr string) (net.Conn, error)
+func NewNode(keyId *common.PeerKeyId, localInfo *peer.PeerInfo, proto p2p.Protocol, net Network) *netserver.NetServer {
+	_, listener := net.NewListener(keyId.Id)
+	dialer := net.NewDialer(keyId.Id)
+	return netserver.NewCustomNetServer(keyId, localInfo, proto, listener, dialer)
 }
-
-// func NewNode(localInfo *peer.PeerInfo, proto p2p.Protocol, net Network) *netserver.NetServer
-// func NewNetwork() NetWork
