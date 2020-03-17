@@ -27,7 +27,6 @@ import (
 	"sync/atomic"
 
 	"github.com/ontio/ontology/p2pserver/common"
-	"github.com/scylladb/go-set/strset"
 )
 
 func init() {
@@ -36,7 +35,7 @@ func init() {
 
 type network struct {
 	sync.RWMutex
-	canEstablish map[string]*strset.Set
+	canEstablish map[string]struct{}
 	listeners    map[string]*Listener
 	startID      uint32
 	// host:port -> connWraper, for remoteaddr
@@ -48,10 +47,11 @@ var _ Network = &network{}
 func NewNetwork() Network {
 	ret := &network{
 		// id -> [id...]
-		canEstablish: make(map[string]*strset.Set),
+		canEstablish: make(map[string]struct{}),
 		// host:port -> Listener
-		listeners: make(map[string]*Listener),
-		startID:   0,
+		listeners:      make(map[string]*Listener),
+		connectionPair: make(map[string]connWraper),
+		startID:        0,
 	}
 
 	return ret
@@ -72,21 +72,21 @@ func (n *network) nextPortString() string {
 	return strconv.Itoa(int(port))
 }
 
+func combineKey(id1, id2 common.PeerId) string {
+	s1 := id1.ToHexString()
+	s2 := id2.ToHexString()
+
+	if s1 <= s2 {
+		return s1 + "|" + s2
+	}
+	return s2 + "|" + s1
+}
+
 func (n *network) AllowConnect(id1, id2 common.PeerId) {
 	n.Lock()
 	defer n.Unlock()
 
-	if _, exist := n.canEstablish[id1.ToHexString()]; !exist {
-		n.canEstablish[id1.ToHexString()] = strset.New(id2.ToHexString())
-	} else {
-		n.canEstablish[id1.ToHexString()].Add(id2.ToHexString())
-	}
-
-	if _, exist := n.canEstablish[id2.ToHexString()]; !exist {
-		n.canEstablish[id2.ToHexString()] = strset.New(id1.ToHexString())
-	} else {
-		n.canEstablish[id2.ToHexString()].Add(id1.ToHexString())
-	}
+	n.canEstablish[combineKey(id1, id2)] = struct{}{}
 }
 
 // DeliverRate TODO

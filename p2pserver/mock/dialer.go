@@ -32,14 +32,21 @@ type dialer struct {
 	network *network
 }
 
+var _ Dialer = &dialer{}
+
 func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
 	d.network.RLock()
+	defer d.network.RUnlock()
 	l, exist := d.network.listeners[nodeAddr]
-	d.network.RUnlock()
 
 	if !exist {
 		return nil, errors.New("can not be reached")
 	}
+
+	if _, allow := d.network.canEstablish[combineKey(d.id, l.id)]; !allow {
+		return nil, errors.New("can not be reached")
+	}
+
 	c, s := net.Pipe()
 
 	cw := connWraper{c, d.address, d.network}
