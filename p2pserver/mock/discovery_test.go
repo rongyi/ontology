@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
@@ -17,6 +15,7 @@ import (
 	"github.com/ontio/ontology/p2pserver/peer"
 	"github.com/ontio/ontology/p2pserver/protocols/bootstrap"
 	"github.com/ontio/ontology/p2pserver/protocols/discovery"
+	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -86,10 +85,21 @@ func TestDiscoveryNode(t *testing.T) {
 		nodes = append(nodes, node)
 	}
 
-	time.Sleep(time.Second * 20)
+	time.Sleep(time.Second * 10)
 	assert.Equal(t, seedNode.GetConnectionCnt(), uint32(N))
 	for i, node := range nodes {
 		assert.Equal(t, node.GetConnectionCnt(), uint32(1), fmt.Sprintf("node %d", i))
+	}
+
+	log.Info("start allow node connection")
+	for i := 0; i < len(nodes); i++ {
+		for j := i + 1; j < len(nodes); j++ {
+			net.AllowConnect(nodes[i].GetHostInfo().Id, nodes[j].GetHostInfo().Id)
+		}
+	}
+	time.Sleep(time.Second * 20)
+	for i, node := range nodes {
+		assert.Equal(t, node.GetConnectionCnt(), uint32(N), fmt.Sprintf("node %d", i))
 	}
 }
 

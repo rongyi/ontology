@@ -246,7 +246,6 @@ func (this *NetServer) Connect(addr string) error {
 
 //Connect used to connect net address under sync or cons mode
 func (this *NetServer) connect(addr string) error {
-	log.Testf("%s connecting %s", this.base.Addr, addr)
 	if this.IsNbrPeerAddr(addr) {
 		return nil
 	}
