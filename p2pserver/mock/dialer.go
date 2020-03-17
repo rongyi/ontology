@@ -50,12 +50,9 @@ func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
 
 	c, s := net.Pipe()
 
-	cw := connWraper{c, d.address, d.network}
-	sw := connWraper{s, l.address, d.network}
+	cw := connWraper{c, d.address, d.network, l.address}
+	sw := connWraper{s, l.address, d.network, d.address}
 	l.PushToAccept(sw)
-	// relationship
-	d.network.connectionPair[d.address] = sw
-	d.network.connectionPair[l.address] = cw
 
 	return cw, nil
 }

@@ -38,8 +38,6 @@ type network struct {
 	canEstablish map[string]struct{}
 	listeners    map[string]*Listener
 	startID      uint32
-	// host:port -> connWraper, for remoteaddr
-	connectionPair map[string]connWraper
 }
 
 var _ Network = &network{}
@@ -49,9 +47,8 @@ func NewNetwork() Network {
 		// id -> [id...]
 		canEstablish: make(map[string]struct{}),
 		// host:port -> Listener
-		listeners:      make(map[string]*Listener),
-		connectionPair: make(map[string]connWraper),
-		startID:        0,
+		listeners: make(map[string]*Listener),
+		startID:   0,
 	}
 
 	return ret
@@ -98,6 +95,7 @@ type connWraper struct {
 	net.Conn
 	address string
 	network *network
+	remote  string
 }
 
 var _ net.Addr = &connWraper{}
@@ -115,6 +113,8 @@ func (cw connWraper) LocalAddr() net.Addr {
 }
 
 func (cw connWraper) RemoteAddr() net.Addr {
-	remote := cw.network.connectionPair[cw.String()]
-	return &remote
+	w := &connWraper{
+		address: cw.remote,
+	}
+	return w
 }
