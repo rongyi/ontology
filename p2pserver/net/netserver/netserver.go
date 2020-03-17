@@ -121,6 +121,17 @@ func (this *NetServer) init(conf *config.P2PNodeConfig) error {
 	}
 	this.connCtrl = connect_controller.NewConnectController(this.base, keyId, option)
 
+	syncPort := this.base.Port
+	if syncPort == 0 {
+		log.Error("[p2p]sync port invalid")
+		return errors.New("[p2p]sync port invalid")
+	}
+	this.listener, err = connect_controller.NewListener(syncPort, config.DefConfig.P2PNode)
+	if err != nil {
+		log.Error("[p2p]failed to create sync listener")
+		return errors.New("[p2p]failed to create sync listener")
+	}
+
 	log.Infof("[p2p]init peer ID to %s", this.base.Id.ToHexString())
 
 	return nil
@@ -129,7 +140,8 @@ func (this *NetServer) init(conf *config.P2PNodeConfig) error {
 //InitListen start listening on the config port
 func (this *NetServer) Start() {
 	this.protocol.HandleSystemMessage(this, p2p.NetworkStart{})
-	this.startListening()
+	go this.startNetAccept(this.listener)
+	log.Infof("[p2p]start listen on sync port %d", this.base.Port)
 	go this.processMessage(this.NetChan, this.stopRecvCh)
 
 	log.Debug("[p2p]MessageRouter start to parse p2p message...")
@@ -275,36 +287,6 @@ func (this *NetServer) Stop() {
 		this.stopRecvCh <- true
 	}
 	this.protocol.HandleSystemMessage(this, p2p.NetworkStop{})
-}
-
-//establishing the connection to remote peers and listening for inbound peers
-func (this *NetServer) startListening() error {
-	syncPort := this.base.Port
-	if syncPort == 0 {
-		log.Error("[p2p]sync port invalid")
-		return errors.New("[p2p]sync port invalid")
-	}
-
-	err := this.startNetListening(syncPort, config.DefConfig.P2PNode)
-	if err != nil {
-		log.Error("[p2p]start sync listening fail")
-		return err
-	}
-	return nil
-}
-
-// startNetListening starts a sync listener on the port for the inbound peer
-func (this *NetServer) startNetListening(port uint16, config *config.P2PNodeConfig) error {
-	var err error
-	this.listener, err = connect_controller.NewListener(port, config)
-	if err != nil {
-		log.Error("[p2p]failed to create sync listener")
-		return errors.New("[p2p]failed to create sync listener")
-	}
-
-	go this.startNetAccept(this.listener)
-	log.Infof("[p2p]start listen on sync port %d", port)
-	return nil
 }
 
 func (this *NetServer) handleClientConnection(conn net.Conn) error {

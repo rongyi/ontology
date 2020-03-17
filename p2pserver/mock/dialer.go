@@ -36,8 +36,8 @@ type dialer struct {
 var _ connect_controller.Dialer = &dialer{}
 
 func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
-	d.network.RLock()
-	defer d.network.RUnlock()
+	d.network.Lock()
+	defer d.network.Unlock()
 	l, exist := d.network.listeners[nodeAddr]
 
 	if !exist {
