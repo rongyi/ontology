@@ -225,6 +225,16 @@ func (this *NetServer) removeOldPeer(kid common.PeerId, remoteAddr string) {
 
 //Connect used to connect net address under sync or cons mode
 func (this *NetServer) Connect(addr string) error {
+	err := this.connect(addr)
+	if err != nil {
+		log.Infof("connecting to %s failed, err: %s", addr, err)
+	}
+	return err
+}
+
+//Connect used to connect net address under sync or cons mode
+func (this *NetServer) connect(addr string) error {
+	log.Testf("connecting %s", addr)
 	if this.IsNbrPeerAddr(addr) {
 		return nil
 	}
