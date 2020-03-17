@@ -26,7 +26,7 @@ import (
 
 type Network interface {
 	NewListener(id common.PeerId) (string, net.Listener)
-	NewDialer() Dialer
+	NewDialer(id common.PeerId) Dialer
 	AllowConnect(id1, id2 common.PeerId)
 	DeliverRate(percent uint)
 }

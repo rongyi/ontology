@@ -23,6 +23,7 @@ import (
 	"encoding/binary"
 	"net"
 	"strconv"
+	"sync"
 	"sync/atomic"
 
 	"github.com/ontio/ontology/p2pserver/common"
@@ -34,6 +35,7 @@ func init() {
 }
 
 type network struct {
+	sync.RWMutex
 	canEstablish map[string]*strset.Set
 	listeners    map[string]*Listener
 	startID      uint32
@@ -71,6 +73,9 @@ func (n *network) nextPortString() string {
 }
 
 func (n *network) AllowConnect(id1, id2 common.PeerId) {
+	n.Lock()
+	defer n.Unlock()
+
 	if _, exist := n.canEstablish[id1.ToHexString()]; !exist {
 		n.canEstablish[id1.ToHexString()] = strset.New(id2.ToHexString())
 	} else {

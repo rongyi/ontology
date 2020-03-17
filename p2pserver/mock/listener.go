@@ -48,7 +48,10 @@ func (n *network) NewListener(id common.PeerId) (string, net.Listener) {
 		address: hostport,
 		conn:    make(chan net.Conn),
 	}
+
+	n.Lock()
 	n.listeners[hostport] = ret
+	n.Unlock()
 
 	return hostport, ret
 }
