@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -42,10 +43,8 @@ func (self *DiscoveryProtocol) start(net p2p.P2P) {
 func (self *DiscoveryProtocol) HandleSystemMessage(net p2p.P2P, msg p2p.SystemMessage) {
 	switch m := msg.(type) {
 	case p2p.NetworkStart:
-		log.Info("network started")
 		self.start(net)
 	case p2p.PeerConnected:
-		log.Infof("peer connected")
 		self.discovery.OnAddPeer(m.Info)
 		self.bootstrap.OnAddPeer(m.Info)
 	case p2p.PeerDisConnected:
@@ -78,7 +77,6 @@ func TestDiscoveryNode(t *testing.T) {
 	seedNode := NewDiscoveryNode(nil, net)
 	var nodes []*netserver.NetServer
 	go seedNode.Start()
-	nodes = append(nodes, seedNode)
 	seedAddr := seedNode.GetHostInfo().Addr
 	log.Errorf("seed addr: %s", seedAddr)
 	for i := 0; i < N; i++ {
@@ -88,9 +86,11 @@ func TestDiscoveryNode(t *testing.T) {
 		nodes = append(nodes, node)
 	}
 
-	time.Sleep(time.Second * 10)
-
+	time.Sleep(time.Second * 20)
 	assert.Equal(t, seedNode.GetConnectionCnt(), uint32(N))
+	for i, node := range nodes {
+		assert.Equal(t, node.GetConnectionCnt(), uint32(1), fmt.Sprintf("node %d", i))
+	}
 }
 
 func NewDiscoveryNode(seeds []string, net Network) *netserver.NetServer {
