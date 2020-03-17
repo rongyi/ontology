@@ -24,6 +24,7 @@ import (
 	"net"
 
 	"github.com/ontio/ontology/p2pserver/common"
+	"github.com/ontio/ontology/p2pserver/connect_controller"
 )
 
 type dialer struct {
@@ -32,7 +33,7 @@ type dialer struct {
 	network *network
 }
 
-var _ Dialer = &dialer{}
+var _ connect_controller.Dialer = &dialer{}
 
 func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
 	d.network.RLock()
@@ -59,7 +60,7 @@ func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
 	return cw, nil
 }
 
-func (n *network) NewDialer(pid common.PeerId) Dialer {
+func (n *network) NewDialer(pid common.PeerId) connect_controller.Dialer {
 	id := n.nextID()
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, id)
