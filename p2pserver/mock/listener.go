@@ -19,7 +19,6 @@
 package mock
 
 import (
-	"encoding/binary"
 	"errors"
 	"net"
 
@@ -36,12 +35,12 @@ var _ net.Listener = &Listener{}
 var _ net.Addr = &Listener{}
 
 func (n *network) NewListener(id common.PeerId) (string, net.Listener) {
-	addr := n.nextID()
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, addr)
-	ip := net.IP(b)
+	ip := n.nextFakeIP()
+	return n.NewListenerWithHost(id, ip)
+}
 
-	hostport := ip.String() + ":" + n.nextPortString()
+func (n *network) NewListenerWithHost(id common.PeerId, host string) (string, net.Listener) {
+	hostport := host + ":" + n.nextPortString()
 
 	ret := &Listener{
 		id:      id,

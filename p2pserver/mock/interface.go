@@ -19,10 +19,8 @@
 package mock
 
 import (
-	"errors"
 	"net"
 	"strconv"
-	"strings"
 
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/connect_controller"
@@ -32,31 +30,23 @@ import (
 )
 
 type Network interface {
+	// NewListener will gen random ip to listen
 	NewListener(id common.PeerId) (string, net.Listener)
+	NewListenerWithHost(id common.PeerId, host string) (string, net.Listener)
+
+	// NewDialer will gen random source IP
 	NewDialer(id common.PeerId) connect_controller.Dialer
+	NewDialerWithHost(id common.PeerId, host string) connect_controller.Dialer
 	AllowConnect(id1, id2 common.PeerId)
 	DeliverRate(percent uint)
 }
 
-func NewNode(keyId *common.PeerKeyId, localInfo *peer.PeerInfo, proto p2p.Protocol, net Network) *netserver.NetServer {
-	addr, listener := net.NewListener(keyId.Id)
-	dialer := net.NewDialer(keyId.Id)
+func NewNode(keyId *common.PeerKeyId, localInfo *peer.PeerInfo, proto p2p.Protocol, nw Network) *netserver.NetServer {
+	addr, listener := nw.NewListener(keyId.Id)
+	host, port, _ := net.SplitHostPort(addr)
+	dialer := nw.NewDialerWithHost(keyId.Id, host)
 	localInfo.Addr = addr
-	localInfo.Port, _ = parsePort(addr)
+	iport, _ := strconv.Atoi(port)
+	localInfo.Port = uint16(iport)
 	return netserver.NewCustomNetServer(keyId, localInfo, proto, listener, dialer)
-}
-
-func parsePort(s string) (uint16, error) {
-	i := strings.LastIndex(s, ":")
-	if i < 0 || i == len(s)-1 {
-		return 0, errors.New("[p2p]split ip port error")
-	}
-	port, err := strconv.Atoi(s[i+1:])
-	if err != nil {
-		return 0, errors.New("[p2p]parse port error")
-	}
-	if port <= 0 || port >= 65535 {
-		return 0, errors.New("[p2p]port out of bound")
-	}
-	return uint16(port), nil
 }

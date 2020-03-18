@@ -19,7 +19,6 @@
 package mock
 
 import (
-	"encoding/binary"
 	"errors"
 	"net"
 
@@ -58,11 +57,12 @@ func (d *dialer) Dial(nodeAddr string) (net.Conn, error) {
 }
 
 func (n *network) NewDialer(pid common.PeerId) connect_controller.Dialer {
-	id := n.nextID()
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, id)
-	ip := net.IP(b)
-	addr := ip.String() + ":" + n.nextPortString()
+	host := n.nextFakeIP()
+	return n.NewDialerWithHost(pid, host)
+}
+
+func (n *network) NewDialerWithHost(pid common.PeerId, host string) connect_controller.Dialer {
+	addr := host + ":" + n.nextPortString()
 
 	d := &dialer{
 		id:      pid,

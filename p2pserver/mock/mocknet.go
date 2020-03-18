@@ -58,6 +58,15 @@ func (n *network) nextID() uint32 {
 	return atomic.AddUint32(&n.startID, 1)
 }
 
+func (n *network) nextFakeIP() string {
+	id := n.nextID()
+	b := make([]byte, 4)
+	binary.BigEndian.PutUint32(b, id)
+	ip := net.IP(b)
+
+	return ip.String()
+}
+
 func (n *network) nextPort() uint16 {
 	port := make([]byte, 2)
 	rand.Read(port)
