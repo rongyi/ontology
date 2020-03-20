@@ -130,5 +130,5 @@ func NewDiscoveryNode(seeds []string, net Network) *netserver.NetServer {
 	dis := NewDiscoveryProtocol(seeds)
 	dis.RefleshInterval = time.Millisecond * 10
 
-	return NewNode(seedId, info, dis, net)
+	return NewNode(seedId, info, dis, net, nil)
 }

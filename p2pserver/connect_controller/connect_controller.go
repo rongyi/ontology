@@ -140,11 +140,17 @@ func (self *ConnectController) reserveEnabled() bool {
 }
 
 func (self *ConnectController) inReserveList(remoteAddr string) bool {
+
 	rsvIPs := []string{}
 	// we don't load domain in start because we consider domain's A/AAAA record may change sometimes
 	for _, curIPOrName := range self.ReservedPeers {
-		curIPs, err := net.LookupHost(curIPOrName)
+		host, err := common.ParseIPAddr(curIPOrName)
 		if err != nil {
+			continue
+		}
+		curIPs, err := net.LookupHost(host)
+		if err != nil {
+			log.Errorf("[inReserveList] curIPOrName:%s, err: %s", curIPOrName, err)
 			continue
 		}
 		rsvIPs = append(rsvIPs, curIPs...)
@@ -163,7 +169,6 @@ func (self *ConnectController) checkReservedPeers(remoteAddr string) error {
 	if !self.reserveEnabled() || self.inReserveList(remoteAddr) {
 		return nil
 	}
-
 	return fmt.Errorf("the remote addr: %s not in reserved list", remoteAddr)
 }
 
