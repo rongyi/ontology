@@ -60,5 +60,7 @@ func NewReservedNode(seeds []string, net Network, reservedPeers []string) *netse
 	seedId := common.RandPeerKeyId()
 	info := peer.NewPeerInfo(seedId.Id, 0, 0, true, 0,
 		0, 0, "1.10", "")
-	return NewNode(seedId, info, NewDiscoveryProtocol(seeds, nil), net, reservedPeers)
+	dis := NewDiscoveryProtocol(seeds, nil)
+	dis.RefleshInterval = time.Millisecond * 1000
+	return NewNode(seedId, info, dis, net, reservedPeers)
 }
