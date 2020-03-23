@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"strings"
+
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/net/netserver"
@@ -21,7 +23,11 @@ func TestNewNetwork(t *testing.T) {
 	node1 := NewMaskNode(nil, net, nil)
 	node1Addr := node1.GetHostInfo().Addr
 
-	node2 := NewMaskNode([]string{node0Addr, node1Addr}, net, []string{node0Addr, node1Addr})
+	ip0 := strings.Split(node0Addr, ":")
+	ip1 := strings.Split(node1Addr, ":")
+
+	log.Errorf("ip0:%s, ip1:%s", ip0[0], ip1[0])
+	node2 := NewMaskNode([]string{node0Addr, node1Addr}, net, []string{ip0[0], ip1[0]})
 
 	net.AllowConnect(node0.GetHostInfo().Id, node1.GetHostInfo().Id)
 	net.AllowConnect(node0.GetHostInfo().Id, node2.GetHostInfo().Id)
@@ -43,7 +49,6 @@ func NewMaskNode(seeds []string, net Network, maskPeers []string) *netserver.Net
 		0, 0, "1.10", "")
 
 	dis := NewDiscoveryProtocol(seeds, maskPeers)
-	dis.RefleshInterval = time.Millisecond * 10
-
+	dis.RefleshInterval = time.Millisecond * 1000
 	return NewNode(seedId, info, dis, net, nil)
 }
