@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/net/netserver"
@@ -60,5 +62,5 @@ func NewReservedNode(seeds []string, net Network, reservedPeers []string) *netse
 	seedId := common.RandPeerKeyId()
 	info := peer.NewPeerInfo(seedId.Id, 0, 0, true, 0,
 		0, 0, "1.10", "")
-	return NewNode(seedId, info, NewDiscoveryProtocol(seeds), net, reservedPeers)
+	return NewNode(seedId, info, NewDiscoveryProtocol(seeds, nil), net, reservedPeers)
 }
