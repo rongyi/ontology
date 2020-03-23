@@ -6,7 +6,6 @@ import (
 
 	"strings"
 
-	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/net/netserver"
 	"github.com/ontio/ontology/p2pserver/peer"
@@ -15,32 +14,39 @@ import (
 
 func TestNewNetwork(t *testing.T) {
 	net := NewNetwork()
+	N := 4
+	nodes := make([]*netserver.NetServer, N)
+	for i := 0; i < N; i++ {
+		var node *netserver.NetServer
+		if i == 2 {
+			node0Addr := nodes[0].GetHostInfo().Addr
+			node1Addr := nodes[1].GetHostInfo().Addr
+			ip0 := strings.Split(node0Addr, ":")
+			ip1 := strings.Split(node1Addr, ":")
+			node = NewMaskNode([]string{node0Addr, node1Addr}, net, []string{ip0[0], ip1[0]})
+		} else if i == 3 {
+			node2Addr := nodes[2].GetHostInfo().Addr
+			node = NewMaskNode([]string{node2Addr}, net, nil)
+		} else {
+			node = NewMaskNode(nil, net, nil)
+		}
+		nodes[i] = node
+	}
 
-	node0 := NewMaskNode(nil, net, nil)
-	node0Addr := node0.GetHostInfo().Addr
-	log.Errorf("seed addr: %s", node0Addr)
-
-	node1 := NewMaskNode(nil, net, nil)
-	node1Addr := node1.GetHostInfo().Addr
-
-	ip0 := strings.Split(node0Addr, ":")
-	ip1 := strings.Split(node1Addr, ":")
-
-	log.Errorf("ip0:%s, ip1:%s", ip0[0], ip1[0])
-	node2 := NewMaskNode([]string{node0Addr, node1Addr}, net, []string{ip0[0], ip1[0]})
-
-	net.AllowConnect(node0.GetHostInfo().Id, node1.GetHostInfo().Id)
-	net.AllowConnect(node0.GetHostInfo().Id, node2.GetHostInfo().Id)
-	net.AllowConnect(node1.GetHostInfo().Id, node2.GetHostInfo().Id)
-
-	go node0.Start()
-	go node1.Start()
-	go node2.Start()
+	for i := 0; i < N; i++ {
+		for j := i; j < N; j++ {
+			net.AllowConnect(nodes[i].GetHostInfo().Id, nodes[j].GetHostInfo().Id)
+		}
+		go nodes[i].Start()
+	}
 
 	time.Sleep(time.Second * 10)
-	assert.Equal(t, uint32(1), node0.GetConnectionCnt())
-	assert.Equal(t, uint32(1), node1.GetConnectionCnt())
-	assert.Equal(t, uint32(2), node2.GetConnectionCnt())
+	for i := 0; i < N; i++ {
+		if i == N-1 {
+			assert.Equal(t, uint32(1), nodes[i].GetConnectionCnt())
+		}
+		assert.Equal(t, uint32(3), nodes[i].GetConnectionCnt())
+	}
 }
 
 func NewMaskNode(seeds []string, net Network, maskPeers []string) *netserver.NetServer {
@@ -49,6 +55,6 @@ func NewMaskNode(seeds []string, net Network, maskPeers []string) *netserver.Net
 		0, 0, "1.10", "")
 
 	dis := NewDiscoveryProtocol(seeds, maskPeers)
-	dis.RefleshInterval = time.Millisecond * 1000
+	dis.RefleshInterval = time.Millisecond * 10
 	return NewNode(seedId, info, dis, net, nil)
 }
