@@ -23,10 +23,11 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"fmt"
 	"net"
 
 	"github.com/ontio/ontology/p2pserver/common"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -83,8 +84,9 @@ func TestNetwork(t *testing.T) {
 }
 
 func TestNetIP(t *testing.T) {
+	a := require.New(t)
 	ip := net.ParseIP("0.0.0.1")
-	fmt.Println(ip)
-	ip2, err := net.LookupHost("1.0.0.1")
-	fmt.Println(ip2, err)
+	a.Equal(ip.String(), "0.0.0.1")
+	_, err := net.LookupHost("1.0.0.1")
+	assert.Nil(t, err)
 }
