@@ -459,3 +459,7 @@ func saveRespCache(key string, value interface{}) bool {
 func (mh *MsgHandler) ReconnectService() *reconnect.ReconnectService {
 	return mh.reconnect
 }
+
+func (mh *MsgHandler) Discovery() *discovery.Discovery {
+	return mh.discovery
+}
