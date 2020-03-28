@@ -341,12 +341,17 @@ func (this *NetServer) FindPeerAddress(ctx context.Context, targetID common.Peer
 
 	// find in local dht
 	betters := msgHandler.Discovery().DHT().BetterPeers(targetID, dht.AlphaValue)
+	if len(betters) == 0 {
+		return "", errors.New("can not find any closer to target")
+	}
+
 	// check in local
 	for _, p := range betters {
 		if p.ID == targetID {
 			return p.Address, nil
 		}
 	}
+
 	// send request to better neighbors
 	req := &types.FindNodeReq{
 		Recursive: true,

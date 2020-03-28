@@ -34,25 +34,51 @@ import (
 	"github.com/scylladb/go-set/strset"
 )
 
+const (
+	cleanRSearchTime = time.Minute * 5
+)
+
 type RecurSearch struct {
-	AddChan chan string // the final address put through here
-	Visited map[common.PeerId]struct{}
+	AddrChan  chan string // the final address put through here
+	Visited   map[common.PeerId]struct{}
+	Todo      map[common.PeerId]struct{}
+	StartTime time.Time
+	lock      sync.Mutex
 }
 
 func NewRecurSearch(ch chan string) *RecurSearch {
 	return &RecurSearch{
-		AddChan: ch,
-		Visited: make(map[common.PeerId]struct{}),
+		AddrChan:  ch,
+		Visited:   make(map[common.PeerId]struct{}),
+		Todo:      make(map[common.PeerId]struct{}),
+		StartTime: time.Now(),
 	}
 }
 
 func (rs *RecurSearch) TryInsert(id common.PeerId) bool {
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
 	if _, exist := rs.Visited[id]; exist {
 		return false
 	}
 
 	rs.Visited[id] = struct{}{}
 	return true
+}
+
+func (rs *RecurSearch) AddTodo(id common.PeerId) {
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
+
+	rs.Todo[id] = struct{}{}
+}
+
+func (rs *RecurSearch) HasTodo(id common.PeerId) bool {
+	rs.lock.Lock()
+	defer rs.lock.Unlock()
+
+	_, ok := rs.Todo[id]
+	return ok
 }
 
 type Discovery struct {
@@ -84,6 +110,7 @@ func NewDiscovery(net p2p.P2P, maskLst []string, refleshInterval time.Duration) 
 func (self *Discovery) Start() {
 	go self.findSelf()
 	go self.refreshCPL()
+	go self.cleanRecurSearch()
 }
 
 func (self *Discovery) Stop() {
@@ -92,6 +119,18 @@ func (self *Discovery) Stop() {
 
 func (self *Discovery) OnAddPeer(info *peer.PeerInfo) {
 	self.dht.Update(info.Id, info.RemoteListenAddress())
+
+	self.rcLock.RLock()
+	defer self.rcLock.RUnlock()
+	for id, entry := range self.recurCache {
+		if entry.HasTodo(info.Id) {
+			req := &types.FindNodeReq{
+				Recursive: true,
+				TargetID:  id,
+			}
+			self.net.SendTo(info.Id, req)
+		}
+	}
 }
 
 func (self *Discovery) OnDelPeer(info *peer.PeerInfo) {
@@ -233,20 +272,22 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 			if curpa.ID == p2p.GetID() {
 				continue
 			}
-			// disconnected
-			if p2p.GetPeer(curpa.ID) == nil {
-				continue
-			}
 			entry, ok := self.recurCache[req.TargetID]
 			if !ok {
 				continue
 			}
-			if _, exist := entry.Visited[curpa.ID]; exist {
+
+			// disconnected
+			if p2p.GetPeer(curpa.ID) == nil {
+				// add it to todo
+				entry.AddTodo(curpa.ID)
 				continue
 			}
-			entry.Visited[curpa.ID] = struct{}{}
 
-			p2p.SendTo(curpa.ID, req)
+			// now this peer is connected
+			if entry.TryInsert(curpa.ID) {
+				p2p.SendTo(curpa.ID, req)
+			}
 		}
 		self.rcLock.RUnlock()
 	}
@@ -376,9 +417,28 @@ func (self *Discovery) doRecursive(resp *types.FindNodeResp) {
 		return
 	}
 	go func() {
-		entry.AddChan <- resp.Address
-		close(entry.AddChan)
+		entry.AddrChan <- resp.Address
+		close(entry.AddrChan)
 	}()
 
 	delete(self.recurCache, resp.TargetID)
+}
+
+func (self *Discovery) cleanRecurSearch() {
+	tick := time.NewTicker(cleanRSearchTime)
+	defer tick.Stop()
+	for {
+		select {
+		case <-tick.C:
+			self.rcLock.RLock()
+			for target, entry := range self.recurCache {
+				if time.Since(entry.StartTime) > time.Minute*3 {
+					delete(self.recurCache, target)
+				}
+			}
+			self.rcLock.RUnlock()
+		case <-self.quit:
+			return
+		}
+	}
 }
