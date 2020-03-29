@@ -341,9 +341,8 @@ func (this *NetServer) FindPeerAddress(ctx context.Context, targetID common.Peer
 
 	// find in local dht
 	betters := msgHandler.Discovery().DHT().BetterPeers(targetID, dht.AlphaValue)
-	if len(betters) == 0 {
-		return "", errors.New("can not find any closer to target")
-	}
+	// if betters is empty we will create an entry for this target
+	// everytime when a newly node is connected we will re find all those target
 
 	// check in local
 	for _, p := range betters {
@@ -359,10 +358,10 @@ func (this *NetServer) FindPeerAddress(ctx context.Context, targetID common.Peer
 	}
 	// add discovery entry
 	ch := make(chan string)
-	rs := msgHandler.Discovery().MakeRecursiveEntry(targetID, ch)
+	msgHandler.Discovery().MakeRecursiveEntry(targetID, ch)
 
 	for _, b := range betters {
-		if rs.TryInsert(b.ID) {
+		if msgHandler.Discovery().TryVisit(targetID, b.ID) {
 			go this.SendTo(b.ID, req)
 		}
 	}

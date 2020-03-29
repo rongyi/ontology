@@ -43,7 +43,6 @@ type RecurSearch struct {
 	Visited   map[common.PeerId]struct{}
 	Todo      map[common.PeerId]struct{}
 	StartTime time.Time
-	lock      sync.Mutex
 }
 
 func NewRecurSearch(ch chan string) *RecurSearch {
@@ -55,9 +54,7 @@ func NewRecurSearch(ch chan string) *RecurSearch {
 	}
 }
 
-func (rs *RecurSearch) TryInsert(id common.PeerId) bool {
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
+func (rs *RecurSearch) TryVisit(id common.PeerId) bool {
 	if _, exist := rs.Visited[id]; exist {
 		return false
 	}
@@ -67,17 +64,13 @@ func (rs *RecurSearch) TryInsert(id common.PeerId) bool {
 }
 
 func (rs *RecurSearch) AddTodo(id common.PeerId) {
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
-
 	rs.Todo[id] = struct{}{}
 }
 
-func (rs *RecurSearch) HasTodo(id common.PeerId) bool {
-	rs.lock.Lock()
-	defer rs.lock.Unlock()
-
+func (rs *RecurSearch) TryTodo(id common.PeerId) bool {
 	_, ok := rs.Todo[id]
+	delete(rs.Todo, id)
+
 	return ok
 }
 
@@ -88,7 +81,7 @@ type Discovery struct {
 	quit    chan bool
 	maskSet *strset.Set
 
-	rcLock     sync.RWMutex
+	rcLock     sync.Mutex
 	recurCache map[common.PeerId]*RecurSearch
 }
 
@@ -120,16 +113,22 @@ func (self *Discovery) Stop() {
 func (self *Discovery) OnAddPeer(info *peer.PeerInfo) {
 	self.dht.Update(info.Id, info.RemoteListenAddress())
 
-	self.rcLock.RLock()
-	defer self.rcLock.RUnlock()
+	self.rcLock.Lock()
+	defer self.rcLock.Unlock()
+	// newly connected node is in todo list
 	for id, entry := range self.recurCache {
-		if entry.HasTodo(info.Id) {
+		if entry.TryTodo(info.Id) && entry.TryVisit(info.Id) {
 			req := &types.FindNodeReq{
 				Recursive: true,
 				TargetID:  id,
 			}
 			self.net.SendTo(info.Id, req)
 		}
+	}
+
+	// re find those searched id
+	for id, entry := range self.recurCache {
+		self.reSearchWithLock(id, entry)
 	}
 }
 
@@ -253,7 +252,7 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 	if fresp.Success {
 		log.Debugf("[p2p dht] %s", "find peer success, do nothing")
 		if fresp.Recursive {
-			self.doRecursive(fresp)
+			self.doRecursiveResp(fresp)
 		}
 		return
 	}
@@ -267,7 +266,7 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 			Recursive: true,
 		}
 
-		self.rcLock.RLock()
+		self.rcLock.Lock()
 		for _, curpa := range fresp.CloserPeers {
 			if curpa.ID == p2p.GetID() {
 				continue
@@ -285,11 +284,11 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 			}
 
 			// now this peer is connected
-			if entry.TryInsert(curpa.ID) {
+			if entry.TryVisit(curpa.ID) {
 				p2p.SendTo(curpa.ID, req)
 			}
 		}
-		self.rcLock.RUnlock()
+		self.rcLock.Unlock()
 	}
 	// we should connect to closer peer to ask them them where should we go
 	for _, curpa := range fresp.CloserPeers {
@@ -408,7 +407,7 @@ func (self *Discovery) MakeRecursiveEntry(target common.PeerId, ch chan string) 
 	return rs
 }
 
-func (self *Discovery) doRecursive(resp *types.FindNodeResp) {
+func (self *Discovery) doRecursiveResp(resp *types.FindNodeResp) {
 	self.rcLock.Lock()
 	defer self.rcLock.Unlock()
 
@@ -416,10 +415,13 @@ func (self *Discovery) doRecursive(resp *types.FindNodeResp) {
 	if !ok {
 		return
 	}
-	go func() {
-		entry.AddrChan <- resp.Address
+	go func(ch chan<- string) {
+		select {
+		case entry.AddrChan <- resp.Address:
+		default:
+		}
 		close(entry.AddrChan)
-	}()
+	}(entry.AddrChan)
 
 	delete(self.recurCache, resp.TargetID)
 }
@@ -430,15 +432,53 @@ func (self *Discovery) cleanRecurSearch() {
 	for {
 		select {
 		case <-tick.C:
-			self.rcLock.RLock()
+			self.rcLock.Lock()
 			for target, entry := range self.recurCache {
 				if time.Since(entry.StartTime) > time.Minute*3 {
 					delete(self.recurCache, target)
 				}
 			}
-			self.rcLock.RUnlock()
+			self.rcLock.Unlock()
 		case <-self.quit:
 			return
+		}
+	}
+}
+
+func (self *Discovery) TryVisit(key, id common.PeerId) bool {
+	self.rcLock.Lock()
+	defer self.rcLock.Unlock()
+	rs, ok := self.recurCache[key]
+	if !ok {
+		return false
+	}
+
+	return rs.TryVisit(id)
+}
+
+func (self *Discovery) reSearchWithLock(target common.PeerId, entry *RecurSearch) {
+	betters := self.dht.BetterPeers(target, dht.AlphaValue)
+	for _, b := range betters {
+		if b.ID == target {
+			go func(ch chan<- string) {
+				select {
+				case entry.AddrChan <- b.Address:
+				default:
+				}
+				close(ch)
+			}(entry.AddrChan)
+			delete(self.recurCache, target)
+			return
+		}
+
+		// send request to better neighbors
+		req := &types.FindNodeReq{
+			Recursive: true,
+			TargetID:  target,
+		}
+
+		if entry.TryVisit(b.ID) {
+			go self.net.SendTo(b.ID, req)
 		}
 	}
 }
