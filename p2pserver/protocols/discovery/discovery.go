@@ -39,10 +39,10 @@ const (
 )
 
 type RecurSearch struct {
-	AddrChan  chan string // the final address put through here
-	Visited   map[common.PeerId]struct{}
-	Todo      map[common.PeerId]struct{}
-	StartTime time.Time
+	AddrChan  chan string                // the final address put through here
+	Visited   map[common.PeerId]struct{} // the visisted set for search target
+	Todo      map[common.PeerId]struct{} // when connected to those node, we will send request to it
+	StartTime time.Time                  // create time
 }
 
 func NewRecurSearch(ch chan string) *RecurSearch {
@@ -118,11 +118,7 @@ func (self *Discovery) OnAddPeer(info *peer.PeerInfo) {
 	// newly connected node is in todo list
 	for id, entry := range self.recurCache {
 		if entry.TryTodo(info.Id) && entry.TryVisit(info.Id) {
-			req := &types.FindNodeReq{
-				Recursive: true,
-				TargetID:  id,
-			}
-			self.net.SendTo(info.Id, req)
+			self.net.SendTo(info.Id, msgpack.NewRecursiveFindNodeReq(id))
 		}
 	}
 
@@ -261,17 +257,12 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 	// for connected node we should send the req again
 	// so another palce is connected callback
 	if fresp.Recursive {
-		req := &types.FindNodeReq{
-			TargetID:  fresp.TargetID,
-			Recursive: true,
-		}
-
 		self.rcLock.Lock()
 		for _, curpa := range fresp.CloserPeers {
 			if curpa.ID == p2p.GetID() {
 				continue
 			}
-			entry, ok := self.recurCache[req.TargetID]
+			entry, ok := self.recurCache[fresp.TargetID]
 			if !ok {
 				continue
 			}
@@ -285,7 +276,7 @@ func (self *Discovery) FindNodeResponseHandle(ctx *p2p.Context, fresp *types.Fin
 
 			// now this peer is connected
 			if entry.TryVisit(curpa.ID) {
-				p2p.SendTo(curpa.ID, req)
+				p2p.SendTo(curpa.ID, msgpack.NewRecursiveFindNodeReq(fresp.TargetID))
 			}
 		}
 		self.rcLock.Unlock()
@@ -472,13 +463,8 @@ func (self *Discovery) reSearchWithLock(target common.PeerId, entry *RecurSearch
 		}
 
 		// send request to better neighbors
-		req := &types.FindNodeReq{
-			Recursive: true,
-			TargetID:  target,
-		}
-
 		if entry.TryVisit(b.ID) {
-			go self.net.SendTo(b.ID, req)
+			go self.net.SendTo(b.ID, msgpack.NewRecursiveFindNodeReq(target))
 		}
 	}
 }
