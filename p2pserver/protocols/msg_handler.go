@@ -31,6 +31,8 @@ import (
 	"github.com/ontio/ontology/core/types"
 	actor "github.com/ontio/ontology/p2pserver/actor/req"
 	msgCommon "github.com/ontio/ontology/p2pserver/common"
+	pcommon "github.com/ontio/ontology/p2pserver/common"
+	"github.com/ontio/ontology/p2pserver/dht"
 	msgpack "github.com/ontio/ontology/p2pserver/message/msg_pack"
 	msgTypes "github.com/ontio/ontology/p2pserver/message/types"
 	p2p "github.com/ontio/ontology/p2pserver/net/protocol"
@@ -462,4 +464,16 @@ func (mh *MsgHandler) ReconnectService() *reconnect.ReconnectService {
 
 func (mh *MsgHandler) Discovery() *discovery.Discovery {
 	return mh.discovery
+}
+
+func (mh *MsgHandler) DHT() *dht.DHT {
+	return mh.discovery.DHT()
+}
+
+func (mh *MsgHandler) MakeRecursiveEntry(target pcommon.PeerId, ch chan string) {
+	mh.discovery.MakeRecursiveEntry(target, ch)
+}
+
+func (mh *MsgHandler) TryVisit(target, visit pcommon.PeerId) bool {
+	return mh.discovery.TryVisit(target, visit)
 }
