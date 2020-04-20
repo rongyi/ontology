@@ -153,18 +153,12 @@ func (self *ConnectController) inReserveList(remoteIPPort string) bool {
 	}
 	// we don't load domain in start because we consider domain's A/AAAA record may change sometimes
 	for _, curIPOrName := range self.ReservedPeers {
-		if net.ParseIP(curIPOrName) == nil {
-			curIPs, err := net.LookupHost(curIPOrName)
-			if err != nil {
-				continue
-			}
-			for _, digIP := range curIPs {
-				if digIP == remoteAddr {
-					return true
-				}
-			}
-		} else { // normal IP
-			if remoteAddr == curIPOrName {
+		curIPs, err := net.LookupHost(curIPOrName)
+		if err != nil {
+			continue
+		}
+		for _, digIP := range curIPs {
+			if digIP == remoteAddr {
 				return true
 			}
 		}

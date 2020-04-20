@@ -20,6 +20,7 @@ package connect_controller
 import (
 	"fmt"
 	"net"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -251,4 +252,10 @@ func TestCheckReserveWithDomain(t *testing.T) {
 	a.False(cret, "fail")
 	cret = cc.inReserveList("192.168.1.111:1234")
 	a.True(cret, "fail")
+
+	cc.ReservedPeers = []string{"192.168.1.2", "www.baidu.com", "192.168.1.1"}
+	sort.Slice(cc.ReservedPeers, func(i, j int) bool {
+		return net.ParseIP(cc.ReservedPeers[i]) != nil
+	})
+	a.Equal(cc.ReservedPeers[len(cc.ReservedPeers)-1], "www.baidu.com", "fail")
 }
