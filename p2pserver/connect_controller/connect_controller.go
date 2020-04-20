@@ -24,7 +24,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/miekg/dns"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/p2pserver/common"
 	"github.com/ontio/ontology/p2pserver/handshake"
@@ -149,7 +148,7 @@ func (self *ConnectController) inReserveList(remoteIPPort string) bool {
 	}
 	// we don't load domain in start because we consider domain's A/AAAA record may change sometimes
 	for _, curIPOrName := range self.ReservedPeers {
-		if _, ok := dns.IsDomainName(curIPOrName); ok {
+		if net.ParseIP(curIPOrName) == nil {
 			curIPs, err := net.LookupHost(curIPOrName)
 			if err != nil {
 				continue
