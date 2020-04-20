@@ -20,6 +20,7 @@ package connect_controller
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -65,6 +66,10 @@ func NewConnectController(peerInfo *peer.PeerInfo, keyid *common.PeerKeyId,
 		connecting:     strset.New(),
 		peers:          make(map[common.PeerId]*connectedPeer),
 	}
+	// put domain to the end
+	sort.Slice(control.ReservedPeers, func(i, j int) bool {
+		return net.ParseIP(control.ReservedPeers[i]) != nil
+	})
 
 	return control
 }
