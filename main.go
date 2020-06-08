@@ -21,6 +21,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
