@@ -722,6 +722,7 @@ func (this *LedgerStoreImp) executeBlock(block *types.Block) (result store.Execu
 		result.CrossStates = append(result.CrossStates, crossStateHashes...)
 	}
 	result.Hash = overlay.ChangeHash()
+	log.Infof("executeblock %d: %s\n", block.Header.Height, result.Hash.ToHexString())
 	result.WriteSet = overlay.GetWriteSet()
 	if len(result.CrossStates) != 0 {
 		log.Infof("executeBlock: %d cross states generated at block height:%d", len(result.CrossStates), block.Header.Height)
@@ -884,6 +885,9 @@ func (this *LedgerStoreImp) tryPruneBlock(header *types.Header) bool {
 
 //saveBlock do the job of execution samrt contract and commit block to store.
 func (this *LedgerStoreImp) submitBlock(block *types.Block, crossChainMsg *types.CrossChainMsg, result store.ExecuteResult) error {
+	if block.Header.Height >= 13074895 {
+		panic("sssssssssssssssssssssssssssssss")
+	}
 	blockHash := block.Hash()
 	blockHeight := block.Header.Height
 	blockRoot := this.GetBlockRootWithNewTxRoots(block.Header.Height, []common.Uint256{block.Header.TransactionsRoot})
