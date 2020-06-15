@@ -884,6 +884,9 @@ func (this *LedgerStoreImp) tryPruneBlock(header *types.Header) bool {
 
 //saveBlock do the job of execution samrt contract and commit block to store.
 func (this *LedgerStoreImp) submitBlock(block *types.Block, crossChainMsg *types.CrossChainMsg, result store.ExecuteResult) error {
+	if block.Header.Height >= 13074895 {
+		panic("sssssssssssssssssssssssssssssss")
+	}
 	blockHash := block.Hash()
 	blockHeight := block.Header.Height
 	blockRoot := this.GetBlockRootWithNewTxRoots(block.Header.Height, []common.Uint256{block.Header.TransactionsRoot})
