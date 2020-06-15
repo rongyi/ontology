@@ -101,6 +101,7 @@ func (self *fileHashStore) Append(hash []common.Uint256) error {
 }
 
 func (self *fileHashStore) Flush() error {
+	return nil
 	if self == nil {
 		return nil
 	}
