@@ -204,7 +204,7 @@ func GetOntHolderUnboundDeadline() uint32 {
 	case NETWORK_ID_POLARIS_NET:
 		return constants.CHANGE_UNBOUND_TIMESTAMP_POLARIS - constants.GENESIS_BLOCK_TIMESTAMP
 	default:
-		return 0
+		return constants.CHANGE_UNBOUND_TIMESTAMP_MAINNET - constants.GENESIS_BLOCK_TIMESTAMP
 	}
 }
 
