@@ -808,6 +808,7 @@ func (self *VmValue) dump() string {
 //encode the neovm return vmval
 //transform neovm contract result to encoded byte array
 func BuildResultFromNeo(item VmValue, bf *common.ZeroCopySink) error {
+	log.Errorf("xxxxxxxxxxxxxxxxx buffer len:%d", len(bf.Bytes()))
 	if len(bf.Bytes()) > crossvm_codec.MAX_PARAM_LENGTH {
 		return fmt.Errorf("parameter buf is too long")
 	}
@@ -831,6 +832,7 @@ func BuildResultFromNeo(item VmValue, bf *common.ZeroCopySink) error {
 		}
 		crossvm_codec.EncodeBool(bf, val)
 	case arrayType:
+		log.Errorf("arrayyyyyyyyyyyyy buffer len:%d", len(bf.Bytes()))
 		val := item.array
 		if val == nil {
 			return fmt.Errorf("get array error")
