@@ -112,11 +112,16 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	}
 	//get the corresponding function
 	function, ok := mainMux.m[method]
+	mainMux.RLock()
 	if ok {
 		param, ok := request["params"].([]interface{})
 		if !ok {
 			log.Error("HTTP JSON RPC Handle - parameter should be array")
 			return
+		}
+		//把请求方的ip传下去
+		if method == "sendrawtransaction" {
+			param = append(param, r.RemoteAddr)
 		}
 		response := function(param)
 		data, err := json.Marshal(map[string]interface{}{
@@ -126,12 +131,6 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 			"result":  response["result"],
 			"id":      request["id"],
 		})
-		errorCode, ok := response["error"].(int64)
-		if ok {
-			if errorCode == berr.MALICIOUS_ERROR {
-				log.Error("malicious transaction, ip:", r.RemoteAddr)
-			}
-		}
 		if err != nil {
 			log.Error("HTTP JSON RPC Handle - json.Marshal: ", err)
 			return
