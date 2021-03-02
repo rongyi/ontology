@@ -126,7 +126,7 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 			"result":  response["result"],
 			"id":      request["id"],
 		})
-		errorCode,ok := response["error"].(int64)
+		errorCode, ok := response["error"].(int64)
 		if ok {
 			if errorCode == berr.MALICIOUS_ERROR {
 				log.Error("malicious transaction, ip:", r.RemoteAddr)
