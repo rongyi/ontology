@@ -112,7 +112,6 @@ func Handle(w http.ResponseWriter, r *http.Request) {
 	}
 	//get the corresponding function
 	function, ok := mainMux.m[method]
-	mainMux.RLock()
 	if ok {
 		param, ok := request["params"].([]interface{})
 		if !ok {
