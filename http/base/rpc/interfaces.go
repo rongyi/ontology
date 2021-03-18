@@ -297,6 +297,8 @@ func SendRawTransaction(params []interface{}) map[string]interface{} {
 		if err != nil {
 			ip := params[len(params)-1].(string) //最后一个参数是ip地址
 			log.Infof("rpc http SendRawTransaction CheckMaliciousTx err: %s,request ip: %s, tx:%s", err, ip, str)
+			//去掉最后的那个参数
+			params = params[:len(params)-1]
 		}
 		if needIntercept {
 			return responsePack(berr.INTERNAL_ERROR, "")
