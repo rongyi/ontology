@@ -299,7 +299,7 @@ func SendRawTransaction(params []interface{}) map[string]interface{} {
 			log.Infof("rpc http SendRawTransaction CheckMaliciousTx err: %s,request ip: %s, tx:%s", err, ip, str)
 		}
 		if needIntercept {
-			return rpc.ResponsePack(berr.INTERNAL_ERROR, "")
+			return responsePack(berr.INTERNAL_ERROR, "")
 		}
 		if txn.TxType == types.InvokeNeo || txn.TxType == types.Deploy || txn.TxType == types.InvokeWasm {
 			if len(params) > 1 {
