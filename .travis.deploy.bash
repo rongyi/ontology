@@ -4,9 +4,9 @@ set -ex
 VERSION=$(git describe --always --tags --long)
 PLATFORM=""
 
-if [[ ${TRAVIS_OS_NAME} == 'linux' ]]; then
+if [[ ${RUNNER_OS} == 'Linux' ]]; then
 	PLATFORM="linux"
-elif [[ ${TRAVIS_OS_NAME} == 'osx' ]]; then
+elif [[ ${RUNNER_OS} == 'osx' ]]; then
 	PLATFORM="darwin"
 else
 	PLATFORM="windows"

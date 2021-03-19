@@ -3,7 +3,7 @@ set -ex
 
 VERSION=$(git describe --always --tags --long)
 
-if [ $TRAVIS_OS_NAME == 'linux' ]; then
+if [ $RUNNER_OS == 'Linux' ]; then
 	echo "linux sys"
 	env GO111MODULE=on make all
 	env GO111MODULE=on go mod vendor
@@ -12,7 +12,7 @@ if [ $TRAVIS_OS_NAME == 'linux' ]; then
 	bash ./.travis.check-templog.sh
 	bash ./.travis.gofmt.sh
 	bash ./.travis.gotest.sh
-elif [ $TRAVIS_OS_NAME == 'osx' ]; then
+elif [ $RUNNER_OS == 'osx' ]; then
 	echo "osx sys"
 	env GO111MODULE=on make all
 else

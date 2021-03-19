@@ -1,10 +1,11 @@
 name: Go
 
+# new tag event
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    tags:
+      # - '*'
+      - 'v*'
 
 jobs:
 
@@ -16,10 +17,34 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v2
       with:
-        go-version: 1.15
+        go-version: 1.13
 
-    - name: Build
-      run: go build -v ./...
+    - name: command
+      run: bash ./.travis.script.bash
 
-    - name: Test
-      run: go test -v ./...
+    - name: command
+      run: bash ./.travis.deploy.bash
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@latest
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          Changes in this Release
+          - First Change
+          - Second Change
+        draft: false
+        prerelease: false
+
+    - name: Release with attachment
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          actiontestbinary
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
