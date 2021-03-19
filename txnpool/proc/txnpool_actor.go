@@ -21,16 +21,15 @@ package proc
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/ontio/ontology/core/validation"
 	"reflect"
 
 	"github.com/ontio/ontology-eventbus/actor"
-
 	"github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/core/ledger"
 	tx "github.com/ontio/ontology/core/types"
+	"github.com/ontio/ontology/core/validation"
 	"github.com/ontio/ontology/errors"
 	"github.com/ontio/ontology/events/message"
 	hComm "github.com/ontio/ontology/http/base/common"

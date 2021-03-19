@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ontio/ontology/core/validation"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/ontio/ontology/account"
@@ -31,6 +30,7 @@ import (
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/core/ledger"
 	"github.com/ontio/ontology/core/types"
+	"github.com/ontio/ontology/core/validation"
 	actor "github.com/ontio/ontology/p2pserver/actor/req"
 	msgCommon "github.com/ontio/ontology/p2pserver/common"
 	msgpack "github.com/ontio/ontology/p2pserver/message/msg_pack"

@@ -21,7 +21,6 @@ package validation
 import (
 	"errors"
 	"fmt"
-	sstate "github.com/ontio/ontology/smartcontract/states"
 
 	"github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/common/config"
@@ -33,6 +32,7 @@ import (
 	"github.com/ontio/ontology/core/types"
 	ontErrors "github.com/ontio/ontology/errors"
 	"github.com/ontio/ontology/smartcontract/service/wasmvm"
+	sstate "github.com/ontio/ontology/smartcontract/states"
 )
 
 // VerifyTransaction verifys received single transaction

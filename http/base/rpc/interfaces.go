@@ -20,7 +20,6 @@ package rpc
 
 import (
 	"encoding/hex"
-	"github.com/ontio/ontology/core/validation"
 
 	"github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/common/config"
@@ -28,6 +27,7 @@ import (
 	"github.com/ontio/ontology/core/payload"
 	scom "github.com/ontio/ontology/core/store/common"
 	"github.com/ontio/ontology/core/types"
+	"github.com/ontio/ontology/core/validation"
 	ontErrors "github.com/ontio/ontology/errors"
 	bactor "github.com/ontio/ontology/http/base/actor"
 	bcomn "github.com/ontio/ontology/http/base/common"
