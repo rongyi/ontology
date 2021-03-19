@@ -10,14 +10,13 @@ mv ./target/wasm32-unknown-unknown/release/boa.wasm ../testwasmdata/jsvm.wasm
 
 for dir in $(ls)
 do
-	[[ -d $dir ]] && {
-		cd $dir
-		echo $dir
-		RUSTFLAGS="-C link-arg=-zstack-size=32768" cargo build --release --target=wasm32-unknown-unknown
-		cd ..
-	}
+  [[ -d $dir ]] && {
+    cd $dir
+    echo $dir
+    RUSTFLAGS="-C link-arg=-zstack-size=32768" cargo build --release --target=wasm32-unknown-unknown
+    cd ..
+  }
 done
 
 
 cp ./target/wasm32-unknown-unknown/release/*.wasm ../testwasmdata
-
