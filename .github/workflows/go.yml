@@ -20,10 +20,10 @@ jobs:
 
     # test done
     - name: command
-      run: bash ./.travis.script.bash
+      run: bash ./.gha.script.bash
 
     - name: command
-      run: bash ./.travis.deploy.bash
+      run: bash ./.gha.deploy.bash
 
     - name: Create Release
       id: create_release

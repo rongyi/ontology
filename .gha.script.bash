@@ -7,11 +7,11 @@ if [ $RUNNER_OS == 'Linux' ]; then
   echo "linux sys"
   env GO111MODULE=on make all
   env GO111MODULE=on go mod vendor
-  cd ./wasmtest && bash ./run-wasm-tests.sh && cd ../
-  bash ./.travis.check-license.sh
-  bash ./.travis.check-templog.sh
-  bash ./.travis.gofmt.sh
-  bash ./.travis.gotest.sh
+  cd ./wasmtest && bash ./gha-run-wasm-tests.sh && cd ../
+  bash ./.gha.check-license.sh
+  bash ./.gha.check-templog.sh
+  bash ./.gha.gofmt.sh
+  bash ./.gha.gotest.sh
 elif [ $RUNNER_OS == 'osx' ]; then
   echo "osx sys"
   env GO111MODULE=on make all
