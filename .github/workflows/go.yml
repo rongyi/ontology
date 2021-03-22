@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
 
@@ -51,6 +51,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-macos:
+    # after build ok, we patch macos version binary
+    needs: build
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
