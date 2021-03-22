@@ -61,7 +61,7 @@ jobs:
         go-version: 1.13
 
     - name: command
-      run: bash ./.travis.deploy.bash
+      run: bash ./.gha.deploy.bash
 
     - name: Release with attachment
       uses: softprops/action-gh-release@v1
