@@ -27,6 +27,7 @@ import (
 	"github.com/ontio/ontology/smartcontract/service/native/cross_chain/cross_chain_manager"
 	"github.com/ontio/ontology/smartcontract/service/native/cross_chain/header_sync"
 	"github.com/ontio/ontology/smartcontract/service/native/cross_chain/lock_proxy"
+	"github.com/ontio/ontology/smartcontract/service/native/ethl2"
 	params "github.com/ontio/ontology/smartcontract/service/native/global_params"
 	"github.com/ontio/ontology/smartcontract/service/native/governance"
 	"github.com/ontio/ontology/smartcontract/service/native/ong"
@@ -53,6 +54,7 @@ func init() {
 	header_sync.InitHeaderSync()
 	lock_proxy.InitLockProxy()
 	ontfs.InitFs()
+	ethl2.InitETHL2()
 }
 
 func InitBytes(addr common.Address, method string) []byte {
