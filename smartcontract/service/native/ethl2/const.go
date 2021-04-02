@@ -6,8 +6,8 @@ import (
 
 const (
 	MethodPutName       = "put"
-	MethodGetName       = "get"
 	MethodAppendAddress = "appendaddress"
+	MethodGetAddress    = "getaddress"
 
 	PutKeyPrefix  = "ethl2"
 	AuthKeyPrefix = "authaddressset"

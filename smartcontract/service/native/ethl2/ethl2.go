@@ -23,6 +23,7 @@ func InitETHL2() {
 func RegisterETHL2Contract(native *native.NativeService) {
 	native.Register(MethodPutName, Put)
 	native.Register(MethodAppendAddress, AppendAuthedAddress)
+	native.Register(MethodGetAddress, GetEthLayer2AuthAddress)
 }
 
 func Put(native *native.NativeService) ([]byte, error) {
@@ -142,4 +143,15 @@ func AppendAuthedAddress(native *native.NativeService) ([]byte, error) {
 	AddAppendAddressNotification(native, contract, ap.Contracts)
 
 	return utils.BYTE_TRUE, nil
+}
+
+func GetEthLayer2AuthAddress(native *native.NativeService) ([]byte, error) {
+	contract := native.ContextRef.CurrentContext().ContractAddress
+
+	b, err := native.CacheDB.Get(GetAppendAutAddressKey(contract))
+	if err != nil {
+		return utils.BYTE_FALSE, err
+	}
+
+	return b, nil
 }

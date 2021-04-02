@@ -41,7 +41,7 @@ import (
 
 var (
 	COMMIT_DPOS_BYTES = InitBytes(utils.GovernanceContractAddress, governance.COMMIT_DPOS)
-	CALL_ETHL2_BYTES  = InitBytes(utils.ETHLayer2ContractAddress, ethl2.MethodPutName)
+	CALL_ETHL2_BYTES  = InitEthl2Bytes(utils.ETHLayer2ContractAddress, ethl2.MethodPutName)
 )
 
 func init() {
@@ -65,6 +65,18 @@ func InitBytes(addr common.Address, method string) []byte {
 	builder.EmitPushByteArray([]byte(method))
 	builder.EmitPushByteArray(addr[:])
 	builder.EmitPushInteger(big.NewInt(0))
+	builder.Emit(vm.SYSCALL)
+	builder.EmitPushByteArray([]byte(neovm.NATIVE_INVOKE_NAME))
+
+	return builder.ToArray()
+}
+
+func InitEthl2Bytes(addr common.Address, method string) []byte {
+	bf := new(bytes.Buffer)
+	builder := vm.NewParamsBuilder(bf)
+	builder.EmitPushByteArray([]byte(method))
+	builder.EmitPushByteArray(addr[:])
+	builder.EmitPushInteger(big.NewInt(0)) // version
 	builder.Emit(vm.SYSCALL)
 	builder.EmitPushByteArray([]byte(neovm.NATIVE_INVOKE_NAME))
 
