@@ -41,6 +41,7 @@ import (
 
 var (
 	COMMIT_DPOS_BYTES = InitBytes(utils.GovernanceContractAddress, governance.COMMIT_DPOS)
+	CALL_ETHL2_BYTES  = InitBytes(utils.ETHLayer2ContractAddress, ethl2.MethodPutName)
 )
 
 func init() {
