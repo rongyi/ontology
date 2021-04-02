@@ -5,10 +5,12 @@ import (
 )
 
 const (
-	MethodPutName = "put"
-	MethodGetName = "get"
+	MethodPutName       = "put"
+	MethodGetName       = "get"
+	MethodAppendAddress = "appendaddress"
 
-	KeyPrefix = "ethl2"
+	PutKeyPrefix  = "ethl2"
+	AuthKeyPrefix = "authaddressset"
 )
 
 const (
@@ -17,5 +19,9 @@ const (
 )
 
 func GenPutKey(contract common.Address, input string) []byte {
-	return append(contract[:], (KeyPrefix + input)...)
+	return append(contract[:], (PutKeyPrefix + input)...)
+}
+
+func GetAppendAutAddressKey(contract common.Address) []byte {
+	return append(contract[:], AuthKeyPrefix...)
 }
