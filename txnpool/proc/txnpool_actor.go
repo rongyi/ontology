@@ -20,7 +20,6 @@ package proc
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 	"reflect"
 
@@ -169,20 +168,22 @@ func (ta *TxActor) handleTransaction(sender tc.SenderType, self *actor.PID,
 		gasPriceConfig := ta.server.getGasPrice()
 
 		if invoke, ok := txn.Payload.(*payload.InvokeCode); ok {
-			ethl2AuthSet, err := ta.server.getEthl2AuthAddress()
+			if len(invoke.Code) >= len(ninit.CALL_ETHL2_BYTES) && bytes.Equal(invoke.Code[len(invoke.Code)-len(ninit.CALL_ETHL2_BYTES):], ninit.CALL_ETHL2_BYTES) {
+				ethl2AuthSet, err := ta.server.getEthl2AuthAddress()
 
-			if err != nil {
-				replyTxResult(txResultCh, txn.Hash(), errors.ErrUnknown,
-					fmt.Sprintf("get ethl2 auth address set fail: %v", err))
-				return
-			}
+				if err != nil {
+					replyTxResult(txResultCh, txn.Hash(), errors.ErrUnknown,
+						fmt.Sprintf("get ethl2 auth address set fail: %v", err))
+					return
+				}
+				// vip tx, pass it directly
+				if ethl2AuthSet.Has(txn.Payer.ToBase58()) {
+					log.Debug("this tx is ethl2 tx, just ignore fee check and pass <------")
+					<-ta.server.slots
+					ta.server.assignTxToWorker(txn, sender, txResultCh)
 
-			if len(invoke.Code) >= len(ninit.CALL_ETHL2_BYTES) && bytes.Equal(invoke.Code[len(invoke.Code)-len(ninit.CALL_ETHL2_BYTES):], ninit.CALL_ETHL2_BYTES) && ethl2AuthSet.Has(txn.Payer.ToBase58()) {
-				log.Debug("this tx is ethl2 tx, just ignore fee check and pass <------")
-				<-ta.server.slots
-				ta.server.assignTxToWorker(txn, sender, txResultCh)
-
-				return
+					return
+				}
 			}
 		}
 

@@ -152,13 +152,6 @@ func (self *StateStore) HandleInvokeTransaction(store store.LedgerStore, overlay
 	code := invoke.Code
 	sysTransFlag := (bytes.Compare(code, ninit.COMMIT_DPOS_BYTES) == 0) || block.Header.Height == 0
 
-	if !sysTransFlag {
-		// still check the ethl2 put
-		if len(code) >= len(ninit.CALL_ETHL2_BYTES) && bytes.Equal(code[len(code)-len(ninit.CALL_ETHL2_BYTES):], ninit.CALL_ETHL2_BYTES) {
-			sysTransFlag = true
-		}
-	}
-
 	isCharge := !sysTransFlag && tx.GasPrice != 0
 
 	// init smart contract configuration info
