@@ -27,7 +27,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ontio/ontology/common"
-	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/smartcontract/service/native"
 	"github.com/ontio/ontology/smartcontract/service/native/global_params"
 	"github.com/ontio/ontology/smartcontract/service/native/utils"
@@ -82,9 +81,9 @@ func Put(native *native.NativeService) ([]byte, error) {
 			ethtx: raw,
 		}
 
-	} else if ethtxType == EthSignedMessageType {
-		log.Infof("%s", "TODO")
-	}
+	} else {
+		return utils.BYTE_FALSE, errors.New("work in progress")
+	} // TODO EthSignedMessageType
 
 	AddNotifications(native, contract, s)
 
@@ -114,7 +113,6 @@ func AppendAuthedAddress(native *native.NativeService) ([]byte, error) {
 	if !native.ContextRef.CheckWitness(operator) {
 		return utils.BYTE_FALSE, errors.New("need global params admin to add address to this set, you have no permission to do this")
 	}
-	log.Infof("%s", "get operator from global param OK")
 
 	raw, err := utils.DecodeVarBytes(common.NewZeroCopySource(native.Input))
 	if err != nil || len(raw) < 1 {
