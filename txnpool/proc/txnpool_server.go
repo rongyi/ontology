@@ -104,6 +104,7 @@ func NewTxPoolServer(num uint8, disablePreExec, disableBroadcastNetTx bool) *TXP
 
 // getEthl2AuthAddress return a base58 set of ethl2auth address
 func (txpserver *TXPoolServer) getEthl2AuthAddress() (*strset.Set, error) {
+	fmt.Println("===========getEthl2AuthAddress==========1")
 	var ret *strset.Set
 	mutable, err := httpcom.NewNativeInvokeTransaction(0, 0, nutils.ETHLayer2ContractAddress, 0, ethl2.MethodGetAddress, []interface{}{""})
 	if err != nil {
@@ -113,16 +114,20 @@ func (txpserver *TXPoolServer) getEthl2AuthAddress() (*strset.Set, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("===========getEthl2AuthAddress==========2")
+
 	result, err := ledger.DefLedger.PreExecuteContract(tx)
 	if err != nil {
 		return nil, fmt.Errorf("PreExecuteContract failed %v", err)
 	}
+	fmt.Println("===========getEthl2AuthAddress==========3")
 
 	ap := params.AddressParam{}
 	data, err := hex.DecodeString(result.Result.(string))
 	if err != nil {
 		return nil, fmt.Errorf("decode result error %v", err)
 	}
+	fmt.Println("===========getEthl2AuthAddress==========4")
 
 	err = ap.Deserialization(common.NewZeroCopySource([]byte(data)))
 	if err != nil {
@@ -132,6 +137,7 @@ func (txpserver *TXPoolServer) getEthl2AuthAddress() (*strset.Set, error) {
 	for _, addr := range ap.Contracts {
 		ret.Add(addr.ToBase58())
 	}
+	fmt.Println("===========getEthl2AuthAddress==========5")
 
 	return ret, nil
 }

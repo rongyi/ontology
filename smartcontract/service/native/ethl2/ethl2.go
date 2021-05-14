@@ -20,6 +20,7 @@ package ethl2
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -102,6 +103,7 @@ func Put(native *native.NativeService) ([]byte, error) {
 		if err != nil {
 			return utils.BYTE_FALSE, err
 		}
+
 		signer := types.NewEIP155Signer(big.NewInt(int64(chainID)))
 		_, err = signer.Sender(&tx)
 		if err != nil {
@@ -110,7 +112,7 @@ func Put(native *native.NativeService) ([]byte, error) {
 
 		s = &State{
 			fName: MethodPutName,
-			ethtx: raw,
+			ethtx: hex.EncodeToString(raw),
 		}
 
 	} else {
