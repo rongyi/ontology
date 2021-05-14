@@ -19,6 +19,7 @@
 package ethl2
 
 import (
+	"encoding/hex"
 	"github.com/ontio/ontology/common"
 	"github.com/ontio/ontology/common/config"
 	"github.com/ontio/ontology/smartcontract/event"
@@ -28,18 +29,19 @@ import (
 
 type State struct {
 	fName string
-	ethtx []byte
+	ethtx string
 }
 
 func (s *State) Serialization(sink *common.ZeroCopySink) {
-	utils.EncodeVarBytes(sink, s.ethtx)
+	ethbts, _ := hex.DecodeString(s.ethtx)
+	utils.EncodeVarBytes(sink, ethbts)
 }
 
 func (s *State) Deserialization(source *common.ZeroCopySource) error {
 	var err error
 
-	s.ethtx, err = utils.DecodeVarBytes(source)
-
+	ethbts, err := utils.DecodeVarBytes(source)
+	s.ethtx = hex.EncodeToString(ethbts)
 	return err
 }
 
