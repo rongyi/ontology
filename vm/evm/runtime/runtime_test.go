@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/asm"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/core/store/leveldbstore"
@@ -851,11 +850,9 @@ func TestEip2929Cases(t *testing.T) {
 	}
 }
 
-func mkcfg() (*Config, *storage.CacheDB, error) {
+func mkcfg() *Config {
 	cfg := new(Config)
 	setDefaults(cfg)
-	// ether statdb
-	// cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
 	memback := leveldbstore.NewMemLevelDBStore()
 	overlay := overlaydb.NewOverlayDB(memback)
@@ -864,17 +861,11 @@ func mkcfg() (*Config, *storage.CacheDB, error) {
 	cfg.State = storage.NewStateDB(cache, common.Hash{}, common.Hash{}, ong.OngBalanceHandle{})
 
 	cfg.GasLimit = 10000000
-	pri, err := crypto.GenerateKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	origin := crypto.PubkeyToAddress(pri.PublicKey)
-	cfg.Origin = origin
+	cfg.Origin = common.HexToAddress("0x123456")
 	cfg.State.AddBalance(cfg.Origin, big.NewInt(1e18))
 	cfg.Value = big.NewInt(1e1)
 
-	return cfg, cache, nil
+	return cfg
 }
 
 const (
@@ -981,73 +972,50 @@ func TestCreate2(t *testing.T) {
 func create(t *testing.T, is2 bool) {
 	a := require.New(t)
 
-	cfg, cache, err := mkcfg()
-	a.Nil(err, "fail")
+	cfg := mkcfg()
 
 	// 1. create
 	// 2. set
 	// 3. get
 	// 4. selfdestruction
 	// 5. get again
-	contractBin, err := hexutil.Decode(StorageBin)
-	a.Nil(err, "fail")
-	var code []byte
-	var ctAddr common.Address
-	var leftGas uint64
+	var contract *Contract
 	if is2 {
-		salt := uint256.NewInt().SetUint64(0xffff)
-		code, ctAddr, leftGas, err = Create2(contractBin, cfg, salt)
+		contract = Create2Contract(cfg, StorageABI, StorageBin, 0xffff)
 	} else {
-		code, ctAddr, leftGas, err = Create(contractBin, cfg)
+		contract = CreateContract(cfg, StorageABI, StorageBin)
 	}
-	a.Nil(err, "fail")
-	t.Logf("code: %s", hex.EncodeToString(code))
-	t.Logf("code at address: %s", ctAddr.String())
-	t.Logf("left gas: %d", leftGas)
 
-	abi, err := abi.JSON(strings.NewReader(StorageABI))
-	a.Nil(err, "fail")
-
-	// set
-	param, err := abi.Pack("store", big.NewInt(1024))
-	a.Nil(err, "fail")
-
+	contract.AutoCommit = true
 	cfg.Value = big.NewInt(0)
-	_, _, err = Call(ctAddr, param, cfg)
-	a.Nil(err, "fail")
-	cache.Commit()
-
-	// get
-	param, err = abi.Pack("retrieve")
+	_, _, err := contract.Call("store", big.NewInt(1024))
 	a.Nil(err, "fail")
 
-	cfg.Value = big.NewInt(0)
-	ret, _, err := Call(ctAddr, param, cfg)
-	a.Nil(err, "fail")
-	cache.Commit()
+	ret, _, err := contract.Call("retrieve")
 	a.Equal(big.NewInt(1024), (&big.Int{}).SetBytes(ret), "fail")
 
 	// before self destruction
-	a.Equal(cfg.State.GetBalance(ctAddr), big.NewInt(10), "fail")
-	a.Equal(cfg.State.GetBalance(cfg.Origin), big.NewInt(1e18-1e1), "fail")
+	a.Equal(contract.Balance(), big.NewInt(10), "fail")
+	a.Equal(contract.BalanceOf(cfg.Origin), big.NewInt(1e18-1e1), "fail")
 
 	// self destruction
-	param, err = abi.Pack("close")
-	a.Nil(err, "fail")
-	Call(ctAddr, param, cfg)
-	cache.Commit()
-	a.Equal(cfg.State.GetBalance(ctAddr), big.NewInt(0), "fail")
-	a.Equal(cfg.State.GetBalance(cfg.Origin), big.NewInt(1e18), "fail")
+	contract.AutoCommit = false
+	contract.Call("close")
+	a.Equal(contract.Balance(), big.NewInt(0), "fail")
+	a.Equal(contract.BalanceOf(cfg.Origin), big.NewInt(1e18), "fail")
 
+	a.True(cfg.State.Suicided[contract.Address])
 	// get again
-	param, err = abi.Pack("retrieve")
-	a.Nil(err, "fail")
-
-	// like ethereum, after self destruction, still get the data
-	cfg.Value = big.NewInt(0)
-	ret, _, err = Call(ctAddr, param, cfg)
+	contract.AutoCommit = true
+	ret, _, err = contract.Call("retrieve")
 	a.Nil(err, "fail")
 	a.Equal(big.NewInt(1024), (&big.Int{}).SetBytes(ret), "fail")
+
+	a.False(cfg.State.Suicided[contract.Address])
+	// after commit, storage should be cleaned
+	ret, _, err = contract.Call("retrieve")
+	a.Nil(err, "calling non exist contract will be taken as normal transfer")
+	a.Nil(ret, "fail")
 }
 
 func TestContractChainDelete(t *testing.T) {
@@ -1061,8 +1029,8 @@ func TestContractChainDelete2(t *testing.T) {
 func contractChaindelete(t *testing.T, is2 bool) {
 	a := require.New(t)
 
-	cfg, cache, err := mkcfg()
-	a.Nil(err, "fail to create config object")
+	cfg := mkcfg()
+	cache := cfg.State
 
 	contractBin, err := hexutil.Decode(CalleeBin)
 	a.Nil(err, "fail")
