@@ -5,11 +5,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/holiman/uint256"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/holiman/uint256"
 	"github.com/ontio/ontology/common/log"
 )
 

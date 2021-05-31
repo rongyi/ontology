@@ -17,7 +17,6 @@
 package runtime
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"os"
@@ -27,12 +26,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/asm"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/holiman/uint256"
 	"github.com/ontio/ontology/common/log"
 	"github.com/ontio/ontology/core/store/leveldbstore"
 	"github.com/ontio/ontology/core/store/overlaydb"
@@ -992,6 +989,7 @@ func create(t *testing.T, is2 bool) {
 	a.Nil(err, "fail")
 
 	ret, _, err := contract.Call("retrieve")
+	a.Nil(err, "fail to retrive")
 	a.Equal(big.NewInt(1024), (&big.Int{}).SetBytes(ret), "fail")
 
 	// before self destruction
@@ -1030,91 +1028,40 @@ func contractChaindelete(t *testing.T, is2 bool) {
 	a := require.New(t)
 
 	cfg := mkcfg()
-	cache := cfg.State
 
-	contractBin, err := hexutil.Decode(CalleeBin)
-	a.Nil(err, "fail")
-	var code []byte
-	var ctAddr common.Address
-	var leftGas uint64
+	var lee *Contract
 	if is2 {
-		salt := uint256.NewInt().SetUint64(0xffff)
-		code, ctAddr, leftGas, err = Create2(contractBin, cfg, salt)
+		lee = Create2Contract(cfg, CalleeABI, CalleeBin, 0xffff)
 	} else {
-		code, ctAddr, leftGas, err = Create(contractBin, cfg)
+		lee = CreateContract(cfg, CalleeABI, CalleeBin)
 	}
-
-	a.Nil(err, "fail")
-	t.Logf("code: %s", hex.EncodeToString(code))
-	t.Logf("code at address: %s", ctAddr.String())
-	t.Logf("left gas: %d", leftGas)
-
-	eeabi, err := abi.JSON(strings.NewReader(CalleeABI))
-	a.Nil(err, "fail")
-
-	param, err := eeabi.Pack("store", big.NewInt(1024))
-	a.Nil(err, "fail")
-
+	lee.AutoCommit = true
 	cfg.Value = big.NewInt(0)
-	_, _, err = Call(ctAddr, param, cfg)
-	a.Nil(err, "fail")
-	cache.Commit()
 
-	param, err = eeabi.Pack("retrieve")
-	a.Nil(err, "fail")
+	_, _, err := lee.Call("store", big.NewInt(1024))
+	a.Nil(err, "fail to call store")
 
-	cfg.Value = big.NewInt(0)
-	ret, _, err := Call(ctAddr, param, cfg)
-	a.Nil(err, "fail")
-	cache.Commit()
-	a.Equal(big.NewInt(1024), (&big.Int{}).SetBytes(ret), "fail")
+	ret, _, err := lee.Call("retrieve")
+	a.Nil(err, "fail to call retrieve")
+	a.Equal(big.NewInt(1024), big.NewInt(0).SetBytes(ret), "fail")
 
-	// before self destruction
-	a.Equal(cfg.State.GetBalance(ctAddr), big.NewInt(10), "fail")
-	a.Equal(cfg.State.GetBalance(cfg.Origin), big.NewInt(1e18-1e1), "fail")
+	var ler *Contract
+	if is2 {
+		ler = Create2Contract(cfg, CallerABI, CallerBin, 0xffff, lee.Address)
+	} else {
+		ler = CreateContract(cfg, CallerABI, CallerBin, lee.Address)
+	}
+	ler.AutoCommit = true
 
-	param, err = eeabi.Pack("retrieve")
-	a.Nil(err, "fail")
-
-	// like ethereum, still get the data
-	cfg.Value = big.NewInt(0)
-	ret, _, err = Call(ctAddr, param, cfg)
-	a.Nil(err, "fail")
-	a.Equal(big.NewInt(1024), (&big.Int{}).SetBytes(ret), "fail")
-
-	erBin, err := hexutil.Decode(CallerBin)
-	a.Nil(err, "fail")
-	erabi, err := abi.JSON(strings.NewReader(CallerABI))
-	a.Nil(err, "fail")
-	erctorParam, err := erabi.Pack("", ctAddr)
-	a.Nil(err, "fail")
-	erBin = append(erBin, erctorParam...)
-	erCode, erAddr, leftGas, err := Create(erBin, cfg)
-	a.Nil(err, "fail")
-	t.Logf("code: %s", hex.EncodeToString(erCode))
-	t.Logf("code at address: %s", erAddr.String())
-	t.Logf("left gas: %d", leftGas)
-	cache.Commit()
-
-	// call get num
-	param, err = erabi.Pack("getNum")
-	a.Nil(err, "fail")
-	ret, _, err = Call(erAddr, param, cfg)
-	a.Nil(err, "fail")
-	a.Equal((&big.Int{}).SetBytes(ret), big.NewInt(1024), "fail")
+	ret, _, err = ler.Call("getNum")
+	a.Nil(err, "fail to get caller getNum")
+	a.Equal(big.NewInt(0).SetBytes(ret), big.NewInt(1024), "fail to get callee store")
 
 	// caller set num and callee selfdestruct
-	param, err = erabi.Pack("setA", big.NewInt(1023))
-	a.Nil(err, "fail")
-	_, _, err = Call(erAddr, param, cfg)
-	a.Nil(err, "fail")
-
-	// caller getnum again
-	param, err = erabi.Pack("getNum")
-	a.Nil(err, "fail")
-	ret, _, err = Call(erAddr, param, cfg)
-	a.Nil(err, "fail")
-	cache.Commit()
-
-	a.Equal((&big.Int{}).SetBytes(ret), big.NewInt(1023), "should be modified 1023 value")
+	ler.AutoCommit = true
+	cfg.Value = big.NewInt(0)
+	ret, _, err = ler.Call("setA", big.NewInt(1023))
+	a.Nil(err, "fail to call setA")
+	a.Equal(big.NewInt(0).SetBytes(ret), big.NewInt(1023), "fail")
+	a.False(cfg.State.Suicided[ler.Address], "fail")
 }
