@@ -1,4 +1,4 @@
-// Copyright 2015 The go-ethereum Authors
+// Copyright (C) 2021 The Ontology Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -859,8 +859,6 @@ func mkcfg() *Config {
 
 	cfg.GasLimit = 10000000
 	cfg.Origin = common.HexToAddress("0x123456")
-	cfg.State.AddBalance(cfg.Origin, big.NewInt(1e18))
-	cfg.Value = big.NewInt(1e1)
 
 	return cfg
 }
@@ -977,6 +975,9 @@ func create(t *testing.T, is2 bool) {
 	// 4. selfdestruction
 	// 5. get again
 	var contract *Contract
+	// create with value
+	cfg.State.AddBalance(cfg.Origin, big.NewInt(1e18))
+	cfg.Value = big.NewInt(1e1)
 	if is2 {
 		contract = Create2Contract(cfg, StorageABI, StorageBin, 0xffff)
 	} else {
