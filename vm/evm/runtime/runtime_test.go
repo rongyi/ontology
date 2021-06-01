@@ -1066,3 +1066,28 @@ func contractChaindelete(t *testing.T, is2 bool) {
 	a.Equal(big.NewInt(0).SetBytes(ret), big.NewInt(1023), "fail")
 	a.False(cfg.State.Suicided[ler.Address], "fail")
 }
+
+func TestCreateOnDeletedAddress(t *testing.T) {
+	a := require.New(t)
+	cfg := mkcfg()
+	c := Create2Contract(cfg, StorageABI, StorageBin, 0xffff)
+	a.NotNil(c, "fail")
+
+	_, _, err := c.Call("store", big.NewInt(0x1234))
+	a.Nil(err, "fail")
+
+	c.AutoCommit = true
+	_, _, err = c.Call("close")
+	a.Nil(err, "fail")
+
+	ret, _, err := c.Call("retrieve")
+	a.Nil(err, "fail")
+	a.Nil(ret, "fail")
+
+	c2 := Create2Contract(cfg, StorageABI, StorageBin, 0xffff)
+	a.NotNil(c2, "fail")
+	a.Equal(c.Address, c2.Address, "create2 should get the same contract address with same salt")
+	ret, _, err = c2.Call("retrieve")
+	a.Nil(err, "fail")
+	a.True((big.NewInt(0).SetBytes(ret).Cmp(big.NewInt(0)) == 0), "should not get previous value 0x1234")
+}
