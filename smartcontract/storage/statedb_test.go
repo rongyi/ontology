@@ -1,3 +1,5 @@
+// Copyright (C) 2021 The Ontology Authors
+
 package storage
 
 import (
