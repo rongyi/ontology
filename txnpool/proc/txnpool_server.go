@@ -23,10 +23,12 @@ package proc
 import (
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ontio/ontology-eventbus/actor"
 	"github.com/ontio/ontology/common"
@@ -178,6 +180,7 @@ func (s *TXPoolServer) init(num uint8, disablePreExec, disableBroadcastNetTx boo
 	s.disableBroadcastNetTx = disableBroadcastNetTx
 	// Create the given concurrent workers
 	s.workers = make([]txPoolWorker, num)
+	rand.Seed(time.Now().UnixNano())
 	// Initial and start the workers
 	var i uint8
 	for i = 0; i < num; i++ {
@@ -293,8 +296,7 @@ func (s *TXPoolServer) removePendingTx(hash common.Uint256,
 
 // setPendingTx adds a transaction to the pending list, if the
 // transaction is already in the pending list, just return false.
-func (s *TXPoolServer) setPendingTx(tx *tx.Transaction,
-	sender tc.SenderType, txResultCh chan *tc.TxResult) bool {
+func (s *TXPoolServer) setPendingTx(tx *tx.Transaction, sender tc.SenderType, txResultCh chan *tc.TxResult) bool {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -315,8 +317,7 @@ func (s *TXPoolServer) setPendingTx(tx *tx.Transaction,
 }
 
 // assignTxToWorker assigns a new transaction to a worker by LB
-func (s *TXPoolServer) assignTxToWorker(tx *tx.Transaction,
-	sender tc.SenderType, txResultCh chan *tc.TxResult) bool {
+func (s *TXPoolServer) assignTxToWorker(tx *tx.Transaction, sender tc.SenderType, txResultCh chan *tc.TxResult) bool {
 
 	if tx == nil {
 		return false
@@ -329,18 +330,9 @@ func (s *TXPoolServer) assignTxToWorker(tx *tx.Transaction,
 		}
 		return false
 	}
-	// Add the rcvTxn to the worker
-	lb := make(tc.LBSlice, len(s.workers))
-	for i := 0; i < len(s.workers); i++ {
-		pending := atomic.LoadInt64(&s.workers[i].pendingTxLen)
-		entry := tc.LB{
-			Size:     len(s.workers[i].rcvTXCh) + int(pending),
-			WorkerID: uint8(i),
-		}
-		lb[i] = entry
-	}
-	sort.Sort(lb)
-	s.workers[lb[0].WorkerID].rcvTXCh <- tx
+
+	s.workers[rand.Intn(len(s.workers))].rcvTXCh <- tx
+
 	return true
 }
 

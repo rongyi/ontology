@@ -51,7 +51,7 @@ type txPoolWorker struct {
 	stfTxCh       chan *tx.Transaction          // The channel of txs to be re-verified stateful
 	rspCh         chan *types.CheckResponse     // The channel of verified response
 	server        *TXPoolServer                 // The txn pool server pointer
-	timer         *time.Timer                   // The timer of reverifying
+	timer         *time.Ticker                  // The timer of reverifying
 	stopCh        chan bool                     // stop routine
 	pendingTxList map[common.Uint256]*pendingTx // The transaction on the verifying process
 	pendingTxLen  int64                         // atomic accessed by other routine
@@ -207,11 +207,13 @@ func (worker *txPoolWorker) verifyTx(tx *tx.Transaction) {
 	}
 	// Add it to the pending transaction list
 	worker.mu.Lock()
-	worker.pendingTxList[tx.Hash()] = pt
-	atomic.StoreInt64(&worker.pendingTxLen, int64(len(worker.pendingTxList)))
-	worker.mu.Unlock()
+
 	// Record the time per a txn
 	pt.valTime = time.Now()
+	worker.pendingTxList[tx.Hash()] = pt
+	atomic.StoreInt64(&worker.pendingTxLen, int64(len(worker.pendingTxList)))
+
+	worker.mu.Unlock()
 }
 
 // reVerifyTx re-sends a check request to the validators.
@@ -303,7 +305,8 @@ func (worker *txPoolWorker) verifyStateful(tx *tx.Transaction) {
 
 // Start is the main event loop.
 func (worker *txPoolWorker) start() {
-	worker.timer = time.NewTimer(time.Second * tc.EXPIRE_INTERVAL)
+	worker.timer = time.NewTicker(time.Second * tc.EXPIRE_INTERVAL)
+	defer worker.timer.Stop()
 	for {
 		select {
 		case <-worker.stopCh:
@@ -320,8 +323,6 @@ func (worker *txPoolWorker) start() {
 			}
 		case <-worker.timer.C:
 			worker.handleTimeoutEvent()
-			worker.timer.Stop()
-			worker.timer.Reset(time.Second * tc.EXPIRE_INTERVAL)
 		case rsp, ok := <-worker.rspCh:
 			if ok {
 				/* Handle the response from validator, if all of cases
