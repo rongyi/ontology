@@ -164,8 +164,8 @@ func (s *TXPoolServer) init(num uint8, disablePreExec, disableBroadcastNetTx boo
 	}
 
 	s.pendingBlock = &pendingBlock{
-		processedTxs:   make(map[common.Uint256]*tc.VerifyTxResult, 0),
-		unProcessedTxs: make(map[common.Uint256]*tx.Transaction, 0),
+		processedTxs:   make(map[common.Uint256]*tc.VerifyTxResult),
+		unProcessedTxs: make(map[common.Uint256]*tx.Transaction),
 	}
 
 	s.slots = make(chan struct{}, tc.MAX_LIMITATION)
