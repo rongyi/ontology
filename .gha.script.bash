@@ -6,9 +6,9 @@ VERSION=$(git describe --always --tags --long)
 if [ $RUNNER_OS == 'Linux' ]; then
   echo "linux sys"
   env GO111MODULE=on make all
-  cd ./wasmtest && bash ./gha-run-wasm-tests.sh && cd ../
-  bash ./.gha.check-license.sh
-  bash ./.gha.check-templog.sh
+  #cd ./wasmtest && bash ./gha-run-wasm-tests.sh && cd ../
+  #bash ./.gha.check-license.sh
+  #bash ./.gha.check-templog.sh
   bash ./.gha.gofmt.sh
   bash ./.gha.gotest.sh
 elif [ $RUNNER_OS == 'osx' ]; then
